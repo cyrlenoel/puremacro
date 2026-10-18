@@ -461,6 +461,23 @@ def show_colab_offload_dialog(
         e_title, e_path = escape(str(title)), escape(str(abs_path))
         e_name, e_folder = escape(p.name), escape(str(drive_folder))
         html_content = f"""
+        <style>
+            .pm-colab-link:hover, .pm-colab-link:focus-visible {{
+                text-decoration: underline !important;
+                color: #174ea6 !important;
+                outline: 2px solid #1a73e8 !important;
+                outline-offset: 2px !important;
+            }}
+            .pm-colab-btn {{
+                transition: background-color 0.2s, box-shadow 0.2s !important;
+            }}
+            .pm-colab-btn:hover, .pm-colab-btn:focus-visible {{
+                background-color: #174ea6 !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+                outline: 2px solid #1a73e8 !important;
+                outline-offset: 2px !important;
+            }}
+        </style>
         <div role="region" aria-label="{e_title}" style="border: 2px solid #4285F4; border-radius: 8px; padding: 16px; margin: 10px 0; background: #f8fafd; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 24px; margin-right: 10px;" aria-hidden="true">🚀</span>
@@ -470,12 +487,12 @@ def show_colab_offload_dialog(
                 Notebook ready at: <code>{e_path}</code>
             </p>
             <ol style="margin: 0 0 12px 0; padding-left: 20px; color: #3c4043;">
-                <li>Open <a href="https://colab.research.google.com" target="_blank" rel="noopener noreferrer" aria-label="Google Colab (opens in a new tab)" style="color: #1a73e8; font-weight: bold;">Google Colab</a> in Safari or Chrome.</li>
+                <li>Open <a href="https://colab.research.google.com" target="_blank" rel="noopener noreferrer" aria-label="Google Colab (opens in a new tab)" class="pm-colab-link" style="color: #1a73e8; font-weight: bold; text-decoration: none;">Google Colab</a> in Safari or Chrome.</li>
                 <li>Upload <code>{e_name}</code>.</li>
                 <li>Run the authentication cell and sign in with your Google Account.</li>
                 <li>Output cartridge will automatically sync back to <code>MyDrive/{e_folder}/</code>.</li>
             </ol>
-            <a href="https://colab.research.google.com" target="_blank" rel="noopener noreferrer" aria-label="Open Google Colab (opens in a new tab)" style="display: inline-block; background-color: #1a73e8; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: 500; font-size: 13px;">
+            <a href="https://colab.research.google.com" target="_blank" rel="noopener noreferrer" aria-label="Open Google Colab (opens in a new tab)" class="pm-colab-btn" style="display: inline-block; background-color: #1a73e8; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: 500; font-size: 13px;">
                 Open Google Colab <span aria-hidden="true">↗</span>
             </a>
         </div>
