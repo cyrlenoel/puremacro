@@ -1,10 +1,11 @@
-🎯 **What:** The `realized_jump` function lacked tests with simple static mock values. The function calculates relative jump RJ = max(0, RV - BV) / RV and includes basic bounds checking.
+### 💡 What
+Replaced repeated `np.concatenate` allocations inside hot loop iterations with vector slicing, reshaping and in-place assignment (`buf[:, :-1] = buf[:, 1:]`).
 
-📊 **Coverage:** Added simple mock value testing in `test_realized_vol_coverage.py` using simple bounds and limits. Includes scenarios:
-* Normal valid computation `rv=10.0, bv=5.0`
-* Zero jump because equal bounds `rv=10.0, bv=10.0`
-* Negative jump bounded to zero `rv=10.0, bv=15.0`
-* Division by zero protection `rv=0.0, bv=5.0`
-* Negative RV fallback `rv=-5.0, bv=5.0`
+### 🎯 Why
+In simulation and bootstrap loops, repeatedly using `np.concatenate` across `T` time steps allocates new memory each iteration, resulting in unnecessary garbage collection and bottleneck performance. Shifting arrays in-place or slicing and reshaping avoids these continuous reallocations.
 
-✨ **Result:** Improved test coverage and explicitly documented parameter behaviors by running through simple static mock parameters rather than randomly generated variables or implicit variable coverage.
+### 📊 Impact
+Microbenchmarks demonstrate a meaningful drop in computation time for time-series buffer roll forwards and simulation builds, speeding up operations like `bootstrap_bands` without affecting correctness.
+
+### 🔬 Measurement
+Tests were successfully executed across the corresponding files via `PYTHONPATH=. python -m pytest tests/test_var_bootstrap_coverage.py tests/test_inference_wild_bootstrap_coverage.py tests/test_inference_bootstrap_coverage.py tests/test_var_bvar_sv.py`.
