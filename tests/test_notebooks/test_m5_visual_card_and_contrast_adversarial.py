@@ -20,10 +20,8 @@ import base64
 import io
 import json
 from pathlib import Path
-from typing import Any
 
 import numpy as np
-import pytest
 from PIL import Image
 
 PROJ_ROOT = Path(__file__).resolve().parents[2]
@@ -84,7 +82,7 @@ def test_notebook_inventory_and_counts():
         p.stem for p in NB_DIR.glob("*.py") if not p.name.startswith("_")
     }
     assert len(course_sub) == 22, f"Expected 22 course subfolder notebooks, found {len(course_sub)}"
-    assert len(curso) == 68, f"Expected 68 curso notebooks, found {len(curso)}"
+    assert len(curso) == 72, f"Expected 72 curso notebooks, found {len(curso)}"
     assert len(showcase) + len(course_sub) + len(curso) >= 214
 
 
@@ -153,9 +151,9 @@ def test_dual_mode_contrast_invariance_and_card_backgrounds():
         if cr < 7.0:  # WCAG AAA threshold
             contrast_violations.append(f"{p.name} cell {c_idx} out {o_idx}: contrast ratio {cr:.2f} < 7.0")
 
-    assert not degenerate_figures, f"Found degenerate figures:\n" + "\n".join(degenerate_figures)
-    assert not non_uniform_corners, f"Found non-uniform corners:\n" + "\n".join(non_uniform_corners)
-    assert not contrast_violations, f"Found low-contrast figures:\n" + "\n".join(contrast_violations)
+    assert not degenerate_figures, "Found degenerate figures:\n" + "\n".join(degenerate_figures)
+    assert not non_uniform_corners, "Found non-uniform corners:\n" + "\n".join(non_uniform_corners)
+    assert not contrast_violations, "Found low-contrast figures:\n" + "\n".join(contrast_violations)
 
     # Assert 100% of images are on valid card backgrounds: either #161616 (grafito) or #FFFFFF (papel)
     valid_backgrounds = {"#161616", "#FFFFFF"}

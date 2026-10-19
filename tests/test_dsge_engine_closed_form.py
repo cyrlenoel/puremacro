@@ -16,9 +16,6 @@ three ways (levels with ``z(+1)`` in the Euler equation, levels with
 """
 from __future__ import annotations
 
-import io
-import contextlib
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -36,8 +33,8 @@ from puremacro.dsge import (
     load_mod,
     parse_mod,
 )
-from puremacro.dsge.klein import BlanchardKahnError
 from puremacro.dsge._moments import ZeroVarianceWarning
+from puremacro.dsge.klein import BlanchardKahnError
 
 ALPHA, BETA, RHO = 0.33, 0.98, 0.9
 K_SS = (ALPHA * BETA) ** (1.0 / (1.0 - ALPHA))
@@ -634,7 +631,7 @@ def test_verify_derivatives_catches_non_analytic_equations():
 
 def test_parse_mod_keeps_stoch_simul_options_with_a_variable_list():
     parsed = parse_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
-    assert parsed["options"] == {"order": 2, "irf": 15}
+    assert parsed["options"]["order"] == 2 and parsed["options"]["irf"] == 15 and parsed["options"]["var_list"] == ["c", "k"]
     sol = load_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
     assert isinstance(sol, PrunedDSGESolution)
 

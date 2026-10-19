@@ -16,63 +16,167 @@ Includes:
 For likelihood-based estimation, pair the state-space form returned by
 ``make_state_space`` (model-specific) with ``puremacro.dsge.estimate_dsge``.
 """
-from .klein import BlanchardKahnError, KleinSolution, klein_solve
+import functools as _functools
+
+from ._gradients import ScoreDiagnosticsResult
+from ._moments import one_sided_hp_filter
+from ._results import (
+    BayesianIRFResult,
+    ConditionalForecastResult,
+    DiagnosticFinding,
+    DiscretionaryPolicyResult,
+    DSGEForecastResult,
+    DSGEPosteriorResult,
+    Dynare2ndDR,
+    DynareDR,
+    EigenvalueTable,
+    ExtendedPathResult,
+    HANKResult,
+    IdentificationResult,
+    ModeCheckResult,
+    ModelDiagnosticsResult,
+    ModelParityResult,
+    NUTSResult,
+    OSRResult,
+    ParityDashboardResult,
+    PolicyResult,
+    PriorPredictiveResult,
+    ShockDecompositionResult,
+    SmootherResult,
+    StochSimulResult,
+    SW07PosteriorResult,
+    TheoreticalMomentsResult,
+)
+from .bayesian import (
+    BayesianEstimationResult,
+    bayesian_irf,
+    estimate_dsge_bayesian,
+    prior_predictive,
+)
 from .build import LinearModel, ModelError, SteadyStateError, build
+from .conditional import conditional_forecast
+from .diagnostics import check, model_diagnostics, resid
+from .dsge_var import DSGEVARResult, estimate_dsge_var
+from .dynare import (
+    DynareFeatureError,
+    _linear_model_stoch_simul,
+    _orig_stoch_simul,
+    build_dynare,
+    load_dynare_mod,
+    load_mod,
+    parse_mod,
+    solve_dynare_2nd_order,
+)
+from .dynare_results import load_dynare_dr, load_dynare_moments, load_fevd, load_irfs
+from .estimate import estimate_dsge
+from .hank import HANKModel, load_hank_mod, solve_hank_bridge
+from .identification import identification
+from .klein import BlanchardKahnError, KleinSolution, klein_solve
+from .macro import DynareMacroError, Scope, preprocess_macro
+from .nuts import nuts_sample
+from .parity import compare_model_to_dynare, run_parity_suite, verify_dynare_parity
+from .policy import discretionary_policy, lq_commitment, optimal_policy, osr
+from .pruning import (
+    PrunedDSGESolution,
+    PrunedSimulationResult,
+    canonical_growth_2nd_order,
+)
+from .shock_groups import shock_groups_decomposition
 from .steady import (
     StructuralSingularityError,
     StructuralSingularityWarning,
     allow_structural_singularity,
     steady,
 )
-from ._moments import one_sided_hp_filter
-from ._results import (
-    DSGEPosteriorResult, SW07PosteriorResult, NUTSResult, HANKResult,
-    DynareDR, Dynare2ndDR, TheoreticalMomentsResult,
-    StochSimulResult,
-    SmootherResult, DSGEForecastResult, ModeCheckResult,
-    DiagnosticFinding, EigenvalueTable, ModelDiagnosticsResult,
-    IdentificationResult,
-    OSRResult, PolicyResult, DiscretionaryPolicyResult,
-    ExtendedPathResult,
-    ConditionalForecastResult,
-    ShockDecompositionResult,
-    BayesianIRFResult,
-    PriorPredictiveResult,
-    ModelParityResult,
-    ParityDashboardResult,
-)
-from .dsge_var import DSGEVARResult, estimate_dsge_var
-from .hank import HANKModel, load_hank_mod, solve_hank_bridge
-from .parity import verify_dynare_parity, compare_model_to_dynare, run_parity_suite
-from .dynare_results import load_dynare_dr, load_dynare_moments, load_irfs, load_fevd
-from .conditional import conditional_forecast
-from .shock_groups import shock_groups_decomposition
-from .bayesian import bayesian_irf, prior_predictive
-from .diagnostics import check, resid, model_diagnostics
-from .identification import identification
-from .policy import osr, discretionary_policy, lq_commitment, optimal_policy
-from .estimate import estimate_dsge
-from .nuts import nuts_sample
-from ._gradients import ScoreDiagnosticsResult
-from .bayesian import BayesianEstimationResult, estimate_dsge_bayesian
-from .sw07_estimate import estimate_sw07
 from .sw07_data import load_sw07_data
-from .sw07_marginal import SW07MarginalLikelihoodResult, sw07_laplace_mdd, sw07_log_posterior
-from .pruning import (
-    PrunedDSGESolution,
-    PrunedSimulationResult,
-    canonical_growth_2nd_order,
+from .sw07_estimate import estimate_sw07
+from .sw07_marginal import (
+    SW07MarginalLikelihoodResult,
+    sw07_laplace_mdd,
+    sw07_log_posterior,
 )
-from .macro import DynareMacroError, Scope, preprocess_macro
-from .dynare import (
-    DynareFeatureError,
-    build_dynare, parse_mod, load_mod, load_dynare_mod, solve_dynare_2nd_order,
-    _orig_stoch_simul, _linear_model_stoch_simul,
+
+LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul) if _orig_stoch_simul is not _linear_model_stoch_simul else _linear_model_stoch_simul
+from . import marginal, mode, news, observation, priors, smoother
+from ._estimated_params import (
+    EstimatedParams,
+    EstimatedParamSpec,
+    parse_estimated_params,
+    parse_estimated_params_bounds,
+    parse_estimated_params_init,
 )
-import functools as _functools
-LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul)
-from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
+from .decomposition import (
+    FEVDResult,
+    ShockDecompResult,
+    compute_fevd,
+    compute_shock_decomposition,
+)
 from .extended_path import extended_path
+from .gertler_karadi import (
+    GK2011_PARAMS,
+    GertlerKaradiResult,
+    build_gertler_karadi_model,
+    solve_gertler_karadi,
+    solve_steady_state,
+)
+from .marginal import (
+    HarmonicMeanResult,
+    harmonic_mean_mdd,
+    laplace_mdd,
+    model_comparison,
+)
+from .markov_switching import (
+    MSDSGEResult,
+    solve_ms_dsge,
+)
+from .mode import cmaes, csminwel, find_mode, mode_check
+from .news import (
+    NewsDecompositionResult,
+    NewsIRFResult,
+    decompose_news,
+    news_irf,
+    plot_news_vs_surprise,
+)
+from .observation import make_state_space_from_varobs
+from .occbin import (
+    DifferentiableOccBinResult,
+    OccBinConstraint,
+    OccBinResult,
+    Phi_tau,
+    d_smax_tau,
+    d_smin_tau,
+    d_smooth_max,
+    d_smooth_min,
+    fischer_burmeister,
+    grad_fischer_burmeister,
+    smax_tau,
+    smin_tau,
+    smooth_max,
+    smooth_min,
+    solve_differentiable_occbin,
+    solve_multiconstraint_occbin,
+    solve_occbin,
+)
+from .particle_filter import (
+    ParticleFilterResult,
+    StochasticVolatilitySpec,
+    multinomial_resample,
+    particle_filter,
+    residual_resample,
+    stratified_resample,
+    systematic_resample,
+)
+from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
+from .priors import (
+    BetaPrior,
+    GammaPrior,
+    InvGammaPrior,
+    NormalPrior,
+    Prior,
+    UniformPrior,
+    WeibullPrior,
+)
+from .smoother import forecast_model, smooth_model
 from .stacked_newton import (
     BlockTridiagonalPreconditioner,
     HorizonComparison,
@@ -84,86 +188,6 @@ from .stacked_newton import (
     preconditioned_lgmres,
     solve_stacked_newton_krylov,
 )
-from .occbin import (
-    OccBinConstraint,
-    OccBinResult,
-    DifferentiableOccBinResult,
-    solve_occbin,
-    solve_multiconstraint_occbin,
-    solve_differentiable_occbin,
-    smin_tau,
-    smax_tau,
-    d_smax_tau,
-    d_smin_tau,
-    smooth_min,
-    smooth_max,
-    d_smooth_max,
-    d_smooth_min,
-    fischer_burmeister,
-    grad_fischer_burmeister,
-    Phi_tau,
-)
-from .gertler_karadi import (
-    GK2011_PARAMS,
-    GertlerKaradiResult,
-    build_gertler_karadi_model,
-    solve_gertler_karadi,
-    solve_steady_state,
-)
-from .priors import (
-    Prior,
-    BetaPrior,
-    InvGammaPrior,
-    NormalPrior,
-    GammaPrior,
-    UniformPrior,
-    WeibullPrior,
-)
-from .decomposition import (
-    FEVDResult,
-    ShockDecompResult,
-    compute_fevd,
-    compute_shock_decomposition,
-)
-from ._estimated_params import (
-    EstimatedParams,
-    EstimatedParamSpec,
-    parse_estimated_params,
-    parse_estimated_params_bounds,
-    parse_estimated_params_init,
-)
-from .observation import make_state_space_from_varobs
-from .smoother import forecast_model, smooth_model
-from .mode import cmaes, csminwel, find_mode, mode_check
-from .marginal import (
-    HarmonicMeanResult,
-    harmonic_mean_mdd,
-    laplace_mdd,
-    model_comparison,
-)
-from .news import (
-    NewsIRFResult,
-    NewsDecompositionResult,
-    news_irf,
-    decompose_news,
-    plot_news_vs_surprise,
-)
-from .particle_filter import (
-    ParticleFilterResult,
-    StochasticVolatilitySpec,
-    multinomial_resample,
-    particle_filter,
-    residual_resample,
-    stratified_resample,
-    systematic_resample,
-)
-from .markov_switching import (
-    MSDSGEResult,
-    solve_ms_dsge,
-)
-from . import priors
-from . import marginal, mode, observation, smoother, news
-
 
 __all__ = [
     "klein_solve", "KleinSolution", "BlanchardKahnError",
@@ -237,16 +261,19 @@ __all__ = [
     "solve_ms_dsge", "MSDSGEResult",
     "markov_switching",
 ]
-from . import smets_wouters  # re-export for back-compat with 0.50.0 callers
-from . import gertler_karadi
-from . import dynare_results, parity
-from . import hank
-from . import macro
-from . import news
-from . import markov_switching
-from . import particle_filter
-from . import estimate
 import types as _types
+
+from . import (
+    dynare_results,
+    estimate,
+    gertler_karadi,
+    hank,
+    macro,
+    markov_switching,
+    parity,
+    particle_filter,
+    smets_wouters,  # re-export for back-compat with 0.50.0 callers
+)
 
 
 class _EstimateModule(_types.ModuleType):

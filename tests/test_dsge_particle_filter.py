@@ -15,8 +15,8 @@ Covers Requirement 4:
 """
 from __future__ import annotations
 
-import math
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +24,7 @@ import pandas as pd
 import pytest
 import scipy.linalg
 
-from puremacro.dsge import build_dynare, LinearModel, load_mod
+from puremacro.dsge import build_dynare, load_mod
 from puremacro.dsge.estimate import estimate_dsge
 from puremacro.dsge.observation import make_state_space_from_varobs
 from puremacro.dsge.particle_filter import (
@@ -38,7 +38,6 @@ from puremacro.dsge.particle_filter import (
 )
 from puremacro.dsge.priors import NormalPrior
 from puremacro.state_space import kalman_filter
-
 
 # ---------------------------------------------------------------------------
 # Test Fixtures: Canonical New Keynesian Model & Synthetic Series
@@ -478,7 +477,7 @@ class TestInputValidation:
             particle_filter(nk_model_setup["m"], synthetic_nk_data, ["y"], n_particles=0)
 
     def test_invalid_method(self, nk_model_setup, synthetic_nk_data):
-        with pytest.raises(ValueError, match="method must be 'bootstrap' or 'auxiliary'"):
+        with pytest.raises(ValueError, match="method must be 'bootstrap', 'auxiliary', or 'tempered'"):
             particle_filter(nk_model_setup["m"], synthetic_nk_data, ["y"], method="kalman_like")
 
     def test_invalid_resampling_method(self, nk_model_setup, synthetic_nk_data):

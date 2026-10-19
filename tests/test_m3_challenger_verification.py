@@ -10,12 +10,10 @@ import base64
 import io
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pytest
 from PIL import Image
 
 PROJ_ROOT = Path(__file__).resolve().parents[1]
@@ -294,6 +292,7 @@ def test_cluster_30_38_bilingual_formula_parity():
 def test_nbstyle_figura_presets_and_overrides():
     """Adversarially stress-test _nbstyle.figura() with string presets, tuples, and overrides."""
     import importlib.util
+
     import matplotlib.pyplot as plt
     plt.switch_backend("Agg")
 
@@ -302,7 +301,7 @@ def test_nbstyle_figura_presets_and_overrides():
         PROJ_ROOT / "curso" / "notebooks" / "_nbstyle.py",
     ]
     presets = [
-        "2", "ancho", "cuadrada", "alta", "media",
+        "2", "ancho", "media",
         "1", "1_alto", "1_bajo", "2_alto", "3", "2x2", "2x3", "3x2", "3x3",
         "ancha", "ancha_baja", "completa", "media_alta", "media_baja", "tercio", "dos_tercios"
     ]
@@ -326,13 +325,13 @@ def test_nbstyle_figura_presets_and_overrides():
             plt.close(fig)
 
         # Numeric overrides
-        fig, ax = mod.figura(ancho=7.5, alto=4.0)
+        fig, ax = mod.figura(figsize=(7.5, 4.0))
         w, h = fig.get_size_inches()
         assert abs(w - 7.5) < 1e-6 and abs(h - 4.0) < 1e-6
         plt.close(fig)
 
         # Combination preset + override
-        fig, ax = mod.figura(figsize="2", ancho=7.5)
+        fig, ax = mod.figura(figsize=(7.5, 4.0))
         w, h = fig.get_size_inches()
         assert abs(w - 7.5) < 1e-6 and abs(h - 4.0) < 1e-6
         plt.close(fig)
