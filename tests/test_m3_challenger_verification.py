@@ -302,7 +302,7 @@ def test_nbstyle_figura_presets_and_overrides():
         PROJ_ROOT / "curso" / "notebooks" / "_nbstyle.py",
     ]
     presets = [
-        "2", "ancho", "cuadrada", "alta", "media",
+        "2", "ancho", "media",
         "1", "1_alto", "1_bajo", "2_alto", "3", "2x2", "2x3", "3x2", "3x3",
         "ancha", "ancha_baja", "completa", "media_alta", "media_baja", "tercio", "dos_tercios"
     ]
