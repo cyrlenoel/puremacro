@@ -25,10 +25,11 @@ Space Methods*, 2nd ed., Oxford University Press. The recursions
 follow chapters 4 (filter) and 4.5 (disturbance smoother); the diffuse
 phase follows §5.2-5.3 (exact initial filtering and smoothing).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 import numpy as np
 
@@ -59,13 +60,14 @@ class StateSpaceModel:
     d : (n,) ndarray, optional
         Measurement intercept.
     """
+
     T: np.ndarray
     Z: np.ndarray
     Q: np.ndarray
     H: np.ndarray
-    R: Optional[np.ndarray] = None
-    c: Optional[np.ndarray] = None
-    d: Optional[np.ndarray] = None
+    R: np.ndarray | None = None
+    c: np.ndarray | None = None
+    d: np.ndarray | None = None
 
     def __post_init__(self):
         self.T = np.asarray(self.T, dtype=float)
@@ -82,33 +84,46 @@ class StateSpaceModel:
         m = self.T.shape[0]
         n = self.Z.shape[0]
         if self.T.shape != (m, m):
-            raise ValueError(f"StateSpaceModel.T must be square (m, m); got {self.T.shape}")
+            raise ValueError(
+                f"StateSpaceModel.T must be square (m, m); got {self.T.shape}"
+            )
         if self.Z.shape[1] != m:
-            raise ValueError(f"StateSpaceModel.Z must be (n, m) with m = {m}; got {self.Z.shape}")
+            raise ValueError(
+                f"StateSpaceModel.Z must be (n, m) with m = {m}; got {self.Z.shape}"
+            )
         if self.H.shape != (n, n):
-            raise ValueError(f"StateSpaceModel.H must be (n, n) with n = {n}; got {self.H.shape}")
+            raise ValueError(
+                f"StateSpaceModel.H must be (n, n) with n = {n}; got {self.H.shape}"
+            )
         if self.R is None:
             self.R = np.eye(m)
         else:
             self.R = np.asarray(self.R, dtype=float)
             if self.R.ndim != 2 or self.R.shape[0] != m:
-                raise ValueError(f"StateSpaceModel.R must be (m, r) with m = {m}; got {self.R.shape}")
+                raise ValueError(
+                    f"StateSpaceModel.R must be (m, r) with m = {m}; got {self.R.shape}"
+                )
         r = self.R.shape[1]
         if self.Q.shape != (r, r):
-            raise ValueError(f"StateSpaceModel.Q must be (r, r) with r = {r}; got {self.Q.shape}")
+            raise ValueError(
+                f"StateSpaceModel.Q must be (r, r) with r = {r}; got {self.Q.shape}"
+            )
         if self.c is None:
             self.c = np.zeros(m)
         else:
             self.c = np.asarray(self.c, dtype=float).reshape(-1)
             if self.c.shape != (m,):
-                raise ValueError(f"StateSpaceModel.c must be (m,) with m = {m}; got {self.c.shape}")
+                raise ValueError(
+                    f"StateSpaceModel.c must be (m,) with m = {m}; got {self.c.shape}"
+                )
         if self.d is None:
             self.d = np.zeros(n)
         else:
             self.d = np.asarray(self.d, dtype=float).reshape(-1)
             if self.d.shape != (n,):
-                raise ValueError(f"StateSpaceModel.d must be (n,) with n = {n}; got {self.d.shape}")
-
+                raise ValueError(
+                    f"StateSpaceModel.d must be (n,) with n = {n}; got {self.d.shape}"
+                )
 
 
 # The diffuse part of the state covariance, P_inf, is carried as
@@ -137,7 +152,7 @@ def _propagate_A_inf(Tm: np.ndarray, A_inf: np.ndarray) -> np.ndarray:
     if q == 0:
         return A_next
     row_bound = (np.abs(Tm) @ np.abs(A_inf)).max(axis=1)
-    live = row_bound > 0.0           # a zero bound means an exactly zero row
+    live = row_bound > 0.0  # a zero bound means an exactly zero row
     scaled = A_next[live] / row_bound[live, None]
     if scaled.shape[0] == 0:
         return A_next[:, :0]
@@ -152,12 +167,13 @@ class _UnivariateStep(NamedTuple):
     """One observation of the diffuse-phase pass, as the exact initial
     smoother reads it back. ``z`` and ``v`` are those of the observation
     after the rotation onto the eigenvectors of H."""
+
     z: np.ndarray
     v: float
     F_star: float
-    M_star: np.ndarray                  # P_* z
-    F_inf: float = 0.0                  # z' P_inf z
-    M_inf: Optional[np.ndarray] = None  # P_inf z; None for a non-diffuse step
+    M_star: np.ndarray  # P_* z
+    F_inf: float = 0.0  # z' P_inf z
+    M_inf: np.ndarray | None = None  # P_inf z; None for a non-diffuse step
 
 
 def _next_observation(
@@ -166,7 +182,7 @@ def _next_observation(
     remaining: list,
     P_curr: np.ndarray,
     A_curr: np.ndarray,
-) -> Optional[int]:
+) -> int | None:
     """The observation of the period to process next, or None when no
     remaining one carries diffuse information.
 
@@ -181,7 +197,7 @@ def _next_observation(
     if A_curr.shape[1] == 0:
         return None
     Z_r = Z_u[remaining]
-    W = Z_r @ A_curr                          # rows (A'z_k)'
+    W = Z_r @ A_curr  # rows (A'z_k)'
     F_inf = np.einsum("ij,ij->i", W, W)
     B = np.abs(Z_r) @ np.abs(A_curr)
     diffuse = F_inf > _DIFFUSE_TOL * np.einsum("ij,ij->i", B, B)
@@ -209,8 +225,10 @@ def _kalman_diffuse_update(
     RQR: np.ndarray,
     n: int,
     log2pi: float,
-    steps: Optional[list] = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, np.ndarray]:
+    steps: list | None = None,
+) -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, np.ndarray
+]:
     """One period of the exact-diffuse filter. If ``steps`` is a list, a
     :class:`_UnivariateStep` is appended to it for each observation."""
     n_obs = Z_t.shape[0]
@@ -243,24 +261,29 @@ def _kalman_diffuse_update(
             remaining.remove(k_next)
             batch = [k_next]
         for k in batch:
-            z_k = Z_u[k]                          # (m,)
+            z_k = Z_u[k]  # (m,)
             v_k = float(y_u[k] - z_k @ a_curr)
-            w_k = A_curr.T @ z_k                  # (q,)
+            w_k = A_curr.T @ z_k  # (q,)
             F_inf_k = float(w_k @ w_k)
             F_star_k = float(z_k @ P_curr @ z_k + h_diag[k])
-            M_star = P_curr @ z_k                 # (m,)
+            M_star = P_curr @ z_k  # (m,)
             bound = np.abs(A_curr).T @ np.abs(z_k)
             if F_inf_k > _DIFFUSE_TOL * float(bound @ bound):
                 # Diffuse update (Koopman-Durbin eq. 5.18):
                 # P_* <- P_* + F_* K0 K0' - K0 M_*' - M_* K0'.
-                M_inf = A_curr @ w_k              # (m,)
+                M_inf = A_curr @ w_k  # (m,)
                 if steps is not None:
-                    steps.append(_UnivariateStep(z_k, v_k, F_star_k, M_star, F_inf_k, M_inf))
+                    steps.append(
+                        _UnivariateStep(z_k, v_k, F_star_k, M_star, F_inf_k, M_inf)
+                    )
                 K0 = M_inf / F_inf_k
                 a_curr = a_curr + K0 * v_k
-                P_curr = P_curr + F_star_k * np.outer(K0, K0) \
-                          - np.outer(K0, M_star) \
-                          - np.outer(M_star, K0)
+                P_curr = (
+                    P_curr
+                    + F_star_k * np.outer(K0, K0)
+                    - np.outer(K0, M_star)
+                    - np.outer(M_star, K0)
+                )
                 # P_inf - M_inf M_inf' / F_inf = A (I - w w' / w'w) A': keep
                 # the orthogonal complement of w in the factor's column space.
                 Q_w, _ = np.linalg.qr(w_k[:, None], mode="complete")
@@ -274,8 +297,7 @@ def _kalman_diffuse_update(
                 K = M_star / F_star_k
                 a_curr = a_curr + K * v_k
                 P_curr = P_curr - np.outer(K, M_star)
-                ll_t += -0.5 * (log2pi + np.log(F_star_k)
-                                 + v_k * v_k / F_star_k)
+                ll_t += -0.5 * (log2pi + np.log(F_star_k) + v_k * v_k / F_star_k)
     a_filt_t = a_curr
     P_filt_t = P_curr
     a_pred_next = Tm @ a_curr + c
@@ -302,7 +324,16 @@ def _kalman_standard_update(
     n: int,
     m: int,
     log2pi: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    float,
+]:
     n_obs = Z_t.shape[0]
     v = (y_t - Z_t @ a_t - d_t) if obs is None else (y_t[obs] - Z_t @ a_t - d_t)
     F = Z_t @ P_t @ Z_t.T + H_t
@@ -337,7 +368,16 @@ def _kalman_standard_update(
     log_det = 2.0 * np.sum(np.log(np.diag(F_chol)))
     ll_t = -0.5 * (n_obs * log2pi + log_det + v @ F_inv_v)
 
-    return a_filt_t, P_filt_t, a_pred_next, P_pred_next, innov_full, F_full, K_full, ll_t
+    return (
+        a_filt_t,
+        P_filt_t,
+        a_pred_next,
+        P_pred_next,
+        innov_full,
+        F_full,
+        K_full,
+        ll_t,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -346,10 +386,10 @@ def _kalman_standard_update(
 def kalman_filter(
     y: np.ndarray,
     model: StateSpaceModel,
-    a0: Optional[np.ndarray] = None,
-    P0: Optional[np.ndarray] = None,
+    a0: np.ndarray | None = None,
+    P0: np.ndarray | None = None,
     diffuse_scale: float = 1e6,
-    diffuse_states: Optional[list] = None,
+    diffuse_states: list | None = None,
 ) -> dict:
     """Run the Kalman filter on y (shape (T, n)).
 
@@ -377,14 +417,175 @@ def kalman_filter(
     return _kalman_filter(y, model, a0, P0, diffuse_scale, diffuse_states)
 
 
+def _initialize_diffuse(
+    P0: np.ndarray,
+    m: int,
+    diffuse_states: list | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    if diffuse_states is None:
+        diffuse_indices = []
+    else:
+        diffuse_indices = list(diffuse_states)
+    use_exact_diffuse = bool(diffuse_indices)
+    A_inf = np.zeros((m, 0))
+    if use_exact_diffuse:
+        # Replace the diffuse rows/cols of P0 with finite zeros and put
+        # the unit "infinity weight" into P_inf instead.
+        P0 = P0.copy()
+        for i in diffuse_indices:
+            for j in range(m):
+                P0[i, j] = 0.0
+                P0[j, i] = 0.0
+        A_inf = np.eye(m)[:, sorted(set(diffuse_indices))]
+    return P0, A_inf
+
+
+def _kalman_filter_standard_path(
+    T_obs: int,
+    y: np.ndarray,
+    Z: np.ndarray,
+    d: np.ndarray,
+    H: np.ndarray,
+    Tm: np.ndarray,
+    c: np.ndarray,
+    RQR: np.ndarray,
+    n: int,
+    m: int,
+    log2pi: float,
+    a_pred: np.ndarray,
+    P_pred: np.ndarray,
+    a_filt: np.ndarray,
+    P_filt: np.ndarray,
+    innov: np.ndarray,
+    F_arr: np.ndarray,
+    K_arr: np.ndarray,
+) -> float:
+    loglik = 0.0
+    for t in range(T_obs):
+        a_t = a_pred[t]
+        P_t = P_pred[t]
+        y_t = y[t]
+        (
+            a_filt[t],
+            P_filt[t],
+            a_pred[t + 1],
+            P_pred[t + 1],
+            innov[t],
+            F_arr[t],
+            K_arr[t],
+            ll_t,
+        ) = _kalman_standard_update(
+            a_t, P_t, y_t, None, Z, d, H, Tm, c, RQR, n, m, log2pi
+        )
+        loglik += ll_t
+    return loglik
+
+
+def _kalman_filter_diffuse_path(
+    T_obs: int,
+    y: np.ndarray,
+    Z: np.ndarray,
+    d: np.ndarray,
+    H: np.ndarray,
+    Tm: np.ndarray,
+    c: np.ndarray,
+    RQR: np.ndarray,
+    n: int,
+    m: int,
+    log2pi: float,
+    A_inf: np.ndarray,
+    diffuse_record: list | None,
+    a_pred: np.ndarray,
+    P_pred: np.ndarray,
+    a_filt: np.ndarray,
+    P_filt: np.ndarray,
+    innov: np.ndarray,
+    F_arr: np.ndarray,
+    K_arr: np.ndarray,
+) -> float:
+    loglik = 0.0
+    for t in range(T_obs):
+        a_t = a_pred[t]
+        P_t = P_pred[t]
+        y_t = y[t]
+        obs = ~np.isnan(y_t)
+        n_obs = int(obs.sum())
+        if n_obs == 0:
+            a_filt[t] = a_t
+            P_filt[t] = P_t
+            a_pred[t + 1] = Tm @ a_t + c
+            P_pred[t + 1] = Tm @ P_t @ Tm.T + RQR
+            if A_inf.shape[1]:
+                if diffuse_record is not None:
+                    diffuse_record.append((A_inf, []))
+                # The diffuse part moves with the state too.
+                A_inf = _propagate_A_inf(Tm, A_inf)
+            continue
+
+        Z_t = Z[obs]
+        d_t = d[obs]
+        H_t = H[np.ix_(obs, obs)]
+
+        # ---- Exact-diffuse path: process this period one obs at a time ----
+        if A_inf.shape[1]:
+            steps: list | None = None
+            if diffuse_record is not None:
+                steps = []
+                diffuse_record.append((A_inf, steps))
+            (
+                a_filt[t],
+                P_filt[t],
+                a_pred[t + 1],
+                P_pred[t + 1],
+                A_inf,
+                ll_t,
+                innov[t],
+            ) = _kalman_diffuse_update(
+                a_t,
+                P_t,
+                A_inf,
+                y_t,
+                obs,
+                Z_t,
+                d_t,
+                H_t,
+                Tm,
+                c,
+                RQR,
+                n,
+                log2pi,
+                steps,
+            )
+            loglik += ll_t
+            # F and K stay zero here: the period has no multivariate F
+            # and K. The smoother reads the univariate steps instead.
+            continue
+
+        # ---- Standard non-diffuse update ----
+        (
+            a_filt[t],
+            P_filt[t],
+            a_pred[t + 1],
+            P_pred[t + 1],
+            innov[t],
+            F_arr[t],
+            K_arr[t],
+            ll_t,
+        ) = _kalman_standard_update(
+            a_t, P_t, y_t, obs, Z_t, d_t, H_t, Tm, c, RQR, n, m, log2pi
+        )
+        loglik += ll_t
+    return loglik
+
+
 def _kalman_filter(
     y: np.ndarray,
     model: StateSpaceModel,
-    a0: Optional[np.ndarray],
-    P0: Optional[np.ndarray],
+    a0: np.ndarray | None,
+    P0: np.ndarray | None,
     diffuse_scale: float,
-    diffuse_states: Optional[list],
-    diffuse_record: Optional[list] = None,
+    diffuse_states: list | None,
+    diffuse_record: list | None = None,
 ) -> dict:
     """:func:`kalman_filter`. If ``diffuse_record`` is a list, one entry
     ``(A_inf_t, steps_t)`` is appended to it for each period of the diffuse
@@ -416,21 +617,7 @@ def _kalman_filter(
     # diffuse part exactly, as P_inf = A_inf A_inf' (see _DIFFUSE_TOL);
     # once all diffuse directions are pinned down by data, A_inf has no
     # columns left and the standard recursion takes over.
-    if diffuse_states is None:
-        diffuse_indices = []
-    else:
-        diffuse_indices = list(diffuse_states)
-    use_exact_diffuse = bool(diffuse_indices)
-    A_inf = np.zeros((m, 0))
-    if use_exact_diffuse:
-        # Replace the diffuse rows/cols of P0 with finite zeros and put
-        # the unit "infinity weight" into P_inf instead.
-        P0 = P0.copy()
-        for i in diffuse_indices:
-            for j in range(m):
-                P0[i, j] = 0.0
-                P0[j, i] = 0.0
-        A_inf = np.eye(m)[:, sorted(set(diffuse_indices))]
+    P0, A_inf = _initialize_diffuse(P0, m, diffuse_states)
 
     a_pred = np.zeros((T_obs + 1, m))
     P_pred = np.zeros((T_obs + 1, m, m))
@@ -447,84 +634,49 @@ def _kalman_filter(
 
     has_nans = bool(np.isnan(y).any())
     if not has_nans and A_inf.shape[1] == 0:
-        Z_t, d_t, H_t = Z, d, H
-        for t in range(T_obs):
-            a_t = a_pred[t]
-            P_t = P_pred[t]
-            y_t = y[t]
-            (
-                a_filt[t],
-                P_filt[t],
-                a_pred[t + 1],
-                P_pred[t + 1],
-                innov[t],
-                F_arr[t],
-                K_arr[t],
-                ll_t,
-            ) = _kalman_standard_update(
-                a_t, P_t, y_t, None, Z_t, d_t, H_t, Tm, c, RQR, n, m, log2pi
-            )
-            loglik += ll_t
+        loglik = _kalman_filter_standard_path(
+            T_obs,
+            y,
+            Z,
+            d,
+            H,
+            Tm,
+            c,
+            RQR,
+            n,
+            m,
+            log2pi,
+            a_pred,
+            P_pred,
+            a_filt,
+            P_filt,
+            innov,
+            F_arr,
+            K_arr,
+        )
     else:
-        for t in range(T_obs):
-            a_t = a_pred[t]
-            P_t = P_pred[t]
-            y_t = y[t]
-            obs = ~np.isnan(y_t)
-            n_obs = int(obs.sum())
-            if n_obs == 0:
-                a_filt[t] = a_t
-                P_filt[t] = P_t
-                a_pred[t + 1] = Tm @ a_t + c
-                P_pred[t + 1] = Tm @ P_t @ Tm.T + RQR
-                if A_inf.shape[1]:
-                    if diffuse_record is not None:
-                        diffuse_record.append((A_inf, []))
-                    # The diffuse part moves with the state too.
-                    A_inf = _propagate_A_inf(Tm, A_inf)
-                continue
-
-            Z_t = Z[obs]
-            d_t = d[obs]
-            H_t = H[np.ix_(obs, obs)]
-
-            # ---- Exact-diffuse path: process this period one obs at a time ----
-            if A_inf.shape[1]:
-                steps: Optional[list] = None
-                if diffuse_record is not None:
-                    steps = []
-                    diffuse_record.append((A_inf, steps))
-                (
-                    a_filt[t],
-                    P_filt[t],
-                    a_pred[t + 1],
-                    P_pred[t + 1],
-                    A_inf,
-                    ll_t,
-                    innov[t],
-                ) = _kalman_diffuse_update(
-                    a_t, P_t, A_inf, y_t, obs, Z_t, d_t, H_t, Tm, c, RQR, n, log2pi,
-                    steps,
-                )
-                loglik += ll_t
-                # F and K stay zero here: the period has no multivariate F
-                # and K. The smoother reads the univariate steps instead.
-                continue
-
-            # ---- Standard non-diffuse update ----
-            (
-                a_filt[t],
-                P_filt[t],
-                a_pred[t + 1],
-                P_pred[t + 1],
-                innov[t],
-                F_arr[t],
-                K_arr[t],
-                ll_t,
-            ) = _kalman_standard_update(
-                a_t, P_t, y_t, obs, Z_t, d_t, H_t, Tm, c, RQR, n, m, log2pi
-            )
-            loglik += ll_t
+        loglik = _kalman_filter_diffuse_path(
+            T_obs,
+            y,
+            Z,
+            d,
+            H,
+            Tm,
+            c,
+            RQR,
+            n,
+            m,
+            log2pi,
+            A_inf,
+            diffuse_record,
+            a_pred,
+            P_pred,
+            a_filt,
+            P_filt,
+            innov,
+            F_arr,
+            K_arr,
+        )
 
     return {
         "a_pred": a_pred,
@@ -600,8 +752,13 @@ def _exact_initial_smoother(
             K1 = (st.M_star - K0 * st.F_star) / st.F_inf
             L0 = eye - np.outer(K0, st.z)
             L1 = -np.outer(K1, st.z)
-            N2 = (-st.F_star / st.F_inf ** 2) * zz + L0.T @ N2 @ L0 \
-                + L0.T @ N1 @ L1 + L1.T @ N1 @ L0 + L1.T @ N0 @ L1
+            N2 = (
+                (-st.F_star / st.F_inf**2) * zz
+                + L0.T @ N2 @ L0
+                + L0.T @ N1 @ L1
+                + L1.T @ N1 @ L0
+                + L1.T @ N0 @ L1
+            )
             N1 = zz / st.F_inf + L0.T @ N1 @ L0 + L1.T @ N0 @ L0 + L0.T @ N0 @ L1
             N0 = L0.T @ N0 @ L0
             r1 = st.z * (st.v / st.F_inf) + L0.T @ r1 + L1.T @ r0
@@ -609,17 +766,22 @@ def _exact_initial_smoother(
         P_star = P_pred[t]
         a_sm[t] = a_pred[t] + P_star @ r0 + P_inf_t @ r1
         P_inf_N1_P_star = P_inf_t @ N1 @ P_star
-        P_sm[t] = (P_star - P_star @ N0 @ P_star - P_inf_N1_P_star
-                   - P_inf_N1_P_star.T - P_inf_t @ N2 @ P_inf_t)
+        P_sm[t] = (
+            P_star
+            - P_star @ N0 @ P_star
+            - P_inf_N1_P_star
+            - P_inf_N1_P_star.T
+            - P_inf_t @ N2 @ P_inf_t
+        )
 
 
 def kalman_smoother(
     y: np.ndarray,
     model: StateSpaceModel,
-    a0: Optional[np.ndarray] = None,
-    P0: Optional[np.ndarray] = None,
+    a0: np.ndarray | None = None,
+    P0: np.ndarray | None = None,
     diffuse_scale: float = 1e6,
-    diffuse_states: Optional[list] = None,
+    diffuse_states: list | None = None,
 ) -> dict:
     """Filter then smooth. Returns filter dict augmented with
     ``a_smooth`` (T, m) and ``P_smooth`` (T, m, m).
@@ -656,8 +818,9 @@ def kalman_smoother(
     smoothed moments are not meaningful.
     """
     diffuse_record: list = []
-    out = _kalman_filter(y, model, a0, P0, diffuse_scale, diffuse_states,
-                         diffuse_record)
+    out = _kalman_filter(
+        y, model, a0, P0, diffuse_scale, diffuse_states, diffuse_record
+    )
     a_pred = out["a_pred"]
     P_pred = out["P_pred"]
     a_filt = out["a_filt"]
@@ -700,8 +863,7 @@ def kalman_smoother(
     # (r, N) are now the values at period n_diffuse, where the terms of the
     # exact initial smoother in 1/kappa start at zero.
     if n_diffuse:
-        _exact_initial_smoother(a_pred, P_pred, diffuse_record, Tm, r, N,
-                                a_sm, P_sm)
+        _exact_initial_smoother(a_pred, P_pred, diffuse_record, Tm, r, N, a_sm, P_sm)
 
     out["a_smooth"] = a_sm
     out["P_smooth"] = P_sm
@@ -714,9 +876,9 @@ def kalman_smoother(
 def simulation_smoother(
     y: np.ndarray,
     model: StateSpaceModel,
-    rng: Optional[np.random.Generator] = None,
-    a0: Optional[np.ndarray] = None,
-    P0: Optional[np.ndarray] = None,
+    rng: np.random.Generator | None = None,
+    a0: np.ndarray | None = None,
+    P0: np.ndarray | None = None,
     diffuse_scale: float = 1e6,
 ) -> np.ndarray:
     """One draw from p(alpha_{1:T} | y_{1:T}) via Durbin-Koopman.
@@ -765,13 +927,10 @@ def simulation_smoother(
         a0 = np.zeros(m)
     if P0 is None:
         P0 = diffuse_scale * np.eye(m)
-    L0 = safe_cholesky(P0 + 1e-10 * np.eye(m),
-                        name="simulation smoother P0")
+    L0 = safe_cholesky(P0 + 1e-10 * np.eye(m), name="simulation smoother P0")
     a_curr = a0 + L0 @ rng.standard_normal(m)
-    LQ = safe_cholesky(Q + 1e-12 * np.eye(r),
-                        name="simulation smoother Q")
-    LH = safe_cholesky(H + 1e-12 * np.eye(n),
-                        name="simulation smoother H")
+    LQ = safe_cholesky(Q + 1e-12 * np.eye(r), name="simulation smoother Q")
+    LH = safe_cholesky(H + 1e-12 * np.eye(n), name="simulation smoother H")
 
     for t in range(T_obs):
         eps = LH @ rng.standard_normal(n)
@@ -785,10 +944,10 @@ def simulation_smoother(
     # y* has already differenced away every deterministic term, so the pass
     # below must run the homogeneous model: zero intercepts as well as a zero
     # initial mean. See the docstring for why.
-    model_zero = StateSpaceModel(T=Tm, Z=Z, Q=Q, H=H, R=R,
-                                 c=np.zeros(m), d=np.zeros(n))
-    out = kalman_smoother(y_star, model_zero, a0=np.zeros(m), P0=P0,
-                          diffuse_scale=diffuse_scale)
+    model_zero = StateSpaceModel(T=Tm, Z=Z, Q=Q, H=H, R=R, c=np.zeros(m), d=np.zeros(n))
+    out = kalman_smoother(
+        y_star, model_zero, a0=np.zeros(m), P0=P0, diffuse_scale=diffuse_scale
+    )
     return a_plus + out["a_smooth"]
 
 
