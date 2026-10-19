@@ -13,10 +13,11 @@ Covers Requirement 4:
 10. Full presentation contract compliance (.summary, .plot, .to_markdown, .to_latex, .to_typst).
 11. Zero external runtime dependencies under the Pyodide four-package constraint.
 """
+
 from __future__ import annotations
 
-import math
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +25,7 @@ import pandas as pd
 import pytest
 import scipy.linalg
 
-from puremacro.dsge import build_dynare, LinearModel, load_mod
+from puremacro.dsge import build_dynare, load_mod
 from puremacro.dsge.estimate import estimate_dsge
 from puremacro.dsge.observation import make_state_space_from_varobs
 from puremacro.dsge.particle_filter import (
@@ -39,10 +40,10 @@ from puremacro.dsge.particle_filter import (
 from puremacro.dsge.priors import NormalPrior
 from puremacro.state_space import kalman_filter
 
-
 # ---------------------------------------------------------------------------
 # Test Fixtures: Canonical New Keynesian Model & Synthetic Series
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def nk_model_setup():
@@ -65,7 +66,12 @@ def nk_model_setup():
         return [
             curr.y - lead.y + (curr.r - lead.pi) / p.sigma - curr.d,
             curr.pi - p.beta * lead.pi - p.kappa * curr.y,
-            curr.r - (p.rho_r * lag.r + (1.0 - p.rho_r) * (p.phi_pi * curr.pi + p.phi_y * curr.y) + shocks_v.eps_m),
+            curr.r
+            - (
+                p.rho_r * lag.r
+                + (1.0 - p.rho_r) * (p.phi_pi * curr.pi + p.phi_y * curr.y)
+                + shocks_v.eps_m
+            ),
             curr.d - p.rho_d * lag.d - shocks_v.eps_d,
         ]
 
@@ -131,6 +137,7 @@ def rbc_model_code():
 # 1. Resampling Schemes Verification
 # ---------------------------------------------------------------------------
 
+
 class TestResamplingAlgorithms:
     """Verify O(N) vectorized resampling algorithms."""
 
@@ -141,7 +148,12 @@ class TestResamplingAlgorithms:
         # Highly degenerate weights: index 0 carries 90% of weight
         weights = np.array([0.90, 0.05, 0.03, 0.02])
 
-        for resample_fn in (systematic_resample, stratified_resample, residual_resample, multinomial_resample):
+        for resample_fn in (
+            systematic_resample,
+            stratified_resample,
+            residual_resample,
+            multinomial_resample,
+        ):
             idx = resample_fn(weights, rng)
             assert len(idx) == 4
             assert idx[0] == 0
@@ -151,7 +163,12 @@ class TestResamplingAlgorithms:
         w_large[0] = 0.80
         w_large[1:] = 0.20 / (N - 1)
 
-        for resample_fn in (systematic_resample, stratified_resample, residual_resample, multinomial_resample):
+        for resample_fn in (
+            systematic_resample,
+            stratified_resample,
+            residual_resample,
+            multinomial_resample,
+        ):
             idx = resample_fn(w_large, rng)
             assert len(idx) == N
             count_0 = np.sum(idx == 0)
@@ -176,6 +193,7 @@ class TestResamplingAlgorithms:
 # ---------------------------------------------------------------------------
 # 2. Kalman Filter Parity Tests (Linear Gaussian Benchmark)
 # ---------------------------------------------------------------------------
+
 
 class TestKalmanFilterParity:
     """Verify BPF and APF log-likelihood parity against analytical Kalman filter within +/- 1.5 log-points."""
@@ -207,9 +225,14 @@ class TestKalmanFilterParity:
         )
 
         abs_diff = abs(res_bpf.log_likelihood - kalman_ll)
-        assert abs_diff < 1.5, f"BPF LL {res_bpf.log_likelihood:.4f} vs Kalman {kalman_ll:.4f} (diff: {abs_diff:.4f})"
+        assert (
+            abs_diff < 1.5
+        ), f"BPF LL {res_bpf.log_likelihood:.4f} vs Kalman {kalman_ll:.4f} (diff: {abs_diff:.4f})"
         assert len(res_bpf.log_likelihood_contributions) == len(df)
-        assert res_bpf.filtered_states.shape == (len(df), len(m.states) + len(m.controls))
+        assert res_bpf.filtered_states.shape == (
+            len(df),
+            len(m.states) + len(m.controls),
+        )
 
     def test_apf_parity_vs_kalman(self, nk_model_setup, synthetic_nk_data):
         """Verify Auxiliary Particle Filter with predictive covariance matches Kalman filter within +/- 1.5 log-points."""
@@ -237,12 +260,15 @@ class TestKalmanFilterParity:
         )
 
         abs_diff = abs(res_apf.log_likelihood - kalman_ll)
-        assert abs_diff < 1.5, f"APF LL {res_apf.log_likelihood:.4f} vs Kalman {kalman_ll:.4f} (diff: {abs_diff:.4f})"
+        assert (
+            abs_diff < 1.5
+        ), f"APF LL {res_apf.log_likelihood:.4f} vs Kalman {kalman_ll:.4f} (diff: {abs_diff:.4f})"
 
 
 # ---------------------------------------------------------------------------
 # 3. Nonlinear Pruned Model Likelihood Evaluation (Order 2 & Order 3)
 # ---------------------------------------------------------------------------
+
 
 class TestNonlinearPrunedParticleFilter:
     """Verify likelihood evaluation on 2nd-order and 3rd-order pruned DSGE state spaces."""
@@ -281,6 +307,7 @@ class TestNonlinearPrunedParticleFilter:
 # 4. Stochastic Volatility & Precautionary Saving
 # ---------------------------------------------------------------------------
 
+
 class TestStochasticVolatility:
     """Verify particle filter state augmentation for Stochastic Volatility and precautionary saving."""
 
@@ -292,7 +319,9 @@ class TestStochasticVolatility:
         varobs = ["c", "k"]
 
         sv = StochasticVolatilitySpec(rho=0.80, sigma_eta=0.25, base_scale=0.01)
-        res = particle_filter(sol2, sim, varobs, n_particles=1_000, stochastic_volatility=sv, seed=42)
+        res = particle_filter(
+            sol2, sim, varobs, n_particles=1_000, stochastic_volatility=sv, seed=42
+        )
 
         assert res.filtered_volatility is not None
         assert res.filtered_volatility.shape == (20, 1)
@@ -312,27 +341,50 @@ class TestStochasticVolatility:
         steady_df = pd.DataFrame({"c": np.full(T, c_ss), "k": np.full(T, k_ss)})
 
         # 1. Run particle filter with normal volatility
-        sv_low = StochasticVolatilitySpec(rho=0.9, sigma_eta=0.05, base_scale=0.01, h0=0.0)
-        res_low = particle_filter(sol2, steady_df, ["c", "k"], n_particles=2_000, stochastic_volatility=sv_low, seed=42)
+        sv_low = StochasticVolatilitySpec(
+            rho=0.9, sigma_eta=0.05, base_scale=0.01, h0=0.0
+        )
+        res_low = particle_filter(
+            sol2,
+            steady_df,
+            ["c", "k"],
+            n_particles=2_000,
+            stochastic_volatility=sv_low,
+            seed=42,
+        )
 
         # 2. Run particle filter with elevated volatility shock (h0 = +1.0 -> 2.7x standard deviation)
-        sv_high = StochasticVolatilitySpec(rho=0.9, sigma_eta=0.05, base_scale=0.01, h0=1.0)
-        res_high = particle_filter(sol2, steady_df, ["c", "k"], n_particles=2_000, stochastic_volatility=sv_high, seed=42)
+        sv_high = StochasticVolatilitySpec(
+            rho=0.9, sigma_eta=0.05, base_scale=0.01, h0=1.0
+        )
+        res_high = particle_filter(
+            sol2,
+            steady_df,
+            ["c", "k"],
+            n_particles=2_000,
+            stochastic_volatility=sv_high,
+            seed=42,
+        )
 
         # Under prudential motive (H_uu > 0 for capital), higher volatility induces higher average capital accumulation
         mean_k_low = res_low.filtered_states["k"].mean()
         mean_k_high = res_high.filtered_states["k"].mean()
-        assert mean_k_high >= mean_k_low - 1e-4, f"Capital under high vol ({mean_k_high:.4f}) vs low vol ({mean_k_low:.4f})"
+        assert (
+            mean_k_high >= mean_k_low - 1e-4
+        ), f"Capital under high vol ({mean_k_high:.4f}) vs low vol ({mean_k_low:.4f})"
 
 
 # ---------------------------------------------------------------------------
 # 5. Fat-Tailed Innovations & Measurement Error Densities
 # ---------------------------------------------------------------------------
 
+
 class TestFatTailedInnovationsAndOutliers:
     """Verify Student-t innovations, Gaussian mixture innovations, and outlier rejuvenation."""
 
-    def test_student_t_innovations_and_measurement(self, nk_model_setup, synthetic_nk_data):
+    def test_student_t_innovations_and_measurement(
+        self, nk_model_setup, synthetic_nk_data
+    ):
         """Verify Student-t innovation and measurement error handling."""
         m = nk_model_setup["m"]
         df = synthetic_nk_data
@@ -387,10 +439,13 @@ class TestFatTailedInnovationsAndOutliers:
 # 6. Public API Delegation & Estimation Dispatch
 # ---------------------------------------------------------------------------
 
+
 class TestPublicApiAndEstimationDispatch:
     """Verify LinearModel delegation and estimate_dsge integration."""
 
-    def test_linear_model_particle_filter_delegation(self, nk_model_setup, synthetic_nk_data):
+    def test_linear_model_particle_filter_delegation(
+        self, nk_model_setup, synthetic_nk_data
+    ):
         """Verify LinearModel.particle_filter delegates cleanly to particle_filter."""
         m = nk_model_setup["m"]
         df = synthetic_nk_data
@@ -400,7 +455,9 @@ class TestPublicApiAndEstimationDispatch:
         assert isinstance(res, ParticleFilterResult)
         assert np.isfinite(res.log_likelihood)
 
-    def test_estimate_dsge_particle_smc_integration(self, nk_model_setup, synthetic_nk_data):
+    def test_estimate_dsge_particle_smc_integration(
+        self, nk_model_setup, synthetic_nk_data
+    ):
         """Verify estimate_dsge(..., method='particle_smc') runs SMC estimation."""
         m = nk_model_setup["m"]
         df = synthetic_nk_data.iloc[:10]
@@ -427,6 +484,7 @@ class TestPublicApiAndEstimationDispatch:
 # 7. Presentation Contract Compliance
 # ---------------------------------------------------------------------------
 
+
 class TestPresentationContract:
     """Verify ParticleFilterResult implements puremacro presentation contract."""
 
@@ -437,7 +495,9 @@ class TestPresentationContract:
         varobs = ["y", "pi", "r"]
 
         sv = StochasticVolatilitySpec(rho=0.8, sigma_eta=0.1)
-        res = particle_filter(m, df, varobs, n_particles=500, stochastic_volatility=sv, seed=42)
+        res = particle_filter(
+            m, df, varobs, n_particles=500, stochastic_volatility=sv, seed=42
+        )
 
         # 1. Summary DataFrame
         summary_df = res.summary()
@@ -470,23 +530,37 @@ class TestPresentationContract:
 # 8. Input Validation & Error Handling
 # ---------------------------------------------------------------------------
 
+
 class TestInputValidation:
     """Verify input validation and informative error messages."""
 
     def test_invalid_n_particles(self, nk_model_setup, synthetic_nk_data):
         with pytest.raises(ValueError, match="n_particles must be >= 1"):
-            particle_filter(nk_model_setup["m"], synthetic_nk_data, ["y"], n_particles=0)
+            particle_filter(
+                nk_model_setup["m"], synthetic_nk_data, ["y"], n_particles=0
+            )
 
     def test_invalid_method(self, nk_model_setup, synthetic_nk_data):
-        with pytest.raises(ValueError, match="method must be 'bootstrap' or 'auxiliary'"):
-            particle_filter(nk_model_setup["m"], synthetic_nk_data, ["y"], method="kalman_like")
+        with pytest.raises(
+            ValueError, match="method must be 'bootstrap', 'auxiliary', or 'tempered'"
+        ):
+            particle_filter(
+                nk_model_setup["m"], synthetic_nk_data, ["y"], method="kalman_like"
+            )
 
     def test_invalid_resampling_method(self, nk_model_setup, synthetic_nk_data):
         with pytest.raises(ValueError, match="resampling_method must be one of"):
-            particle_filter(nk_model_setup["m"], synthetic_nk_data, ["y"], resampling_method="quantum")
+            particle_filter(
+                nk_model_setup["m"],
+                synthetic_nk_data,
+                ["y"],
+                resampling_method="quantum",
+            )
 
     def test_empty_observables(self, nk_model_setup, synthetic_nk_data):
-        with pytest.raises(ValueError, match="observed_vars must contain at least one variable name"):
+        with pytest.raises(
+            ValueError, match="observed_vars must contain at least one variable name"
+        ):
             particle_filter(nk_model_setup["m"], synthetic_nk_data, [])
 
     def test_missing_data_columns(self, nk_model_setup, synthetic_nk_data):

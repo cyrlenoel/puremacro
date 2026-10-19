@@ -16,12 +16,11 @@ them into ``data/processed/long_panel_1975_2024_g9.csv``:
 * :func:`build_g9_long_panel` — splicer + write CSV.
 * :func:`splice_audit` — per-country MAD in the overlap window.
 """
-
 from __future__ import annotations
 
 import io
-from collections.abc import Iterable
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -82,7 +81,9 @@ def load_pwt10(
             "(CC BY 4.0; not shipped with the repo). For PWT 11.0 use "
             "puremacro.fetch.pwt.fetch_pwt(), which downloads and caches it."
         )
-    df = pd.read_stata(path, columns=["countrycode", "year", "pl_i", "pl_c", "labsh"])
+    df = pd.read_stata(
+        path, columns=["countrycode", "year", "pl_i", "pl_c", "labsh"]
+    )
     df = df.rename(columns={"countrycode": "code"})
     df["year"] = df["year"].astype(int)
     df = df[(df["year"] >= start) & (df["year"] <= end)]
@@ -91,7 +92,8 @@ def load_pwt10(
     df = df.copy()
     # Relative-equipment-price column (requires both price levels).
     pk_ok = (
-        df["pl_i"].notna() & df["pl_c"].notna() & (df["pl_i"] > 0) & (df["pl_c"] > 0)
+        df["pl_i"].notna() & df["pl_c"].notna()
+        & (df["pl_i"] > 0) & (df["pl_c"] > 0)
     )
     df["log_relprice_equip"] = np.where(
         pk_ok, np.log(df["pl_i"]) - np.log(df["pl_c"]), np.nan
@@ -101,7 +103,8 @@ def load_pwt10(
     df["log_LS_pwt"] = np.where(ls_ok, np.log(df["labsh"]), np.nan)
     df = df.sort_values(["code", "year"]).reset_index(drop=True)
     return df[
-        ["code", "year", "pl_i", "pl_c", "log_relprice_equip", "labsh", "log_LS_pwt"]
+        ["code", "year", "pl_i", "pl_c", "log_relprice_equip",
+         "labsh", "log_LS_pwt"]
     ]
 
 
@@ -122,9 +125,7 @@ _STAN_LABR_VAR = "LABR"
 _STAN_VALU_VAR = "VALU"
 
 
-def _fetch_stan_csv(
-    country: str, var: str, agg: str, *, timeout: float = 30.0
-) -> pd.DataFrame:
+def _fetch_stan_csv(country: str, var: str, agg: str, *, timeout: float = 30.0) -> pd.DataFrame:
     """Fetch one (country, var, aggregation) STAN series via OECD SDMX.
 
     Returns a DataFrame with columns ``[year, value]`` on success, or
@@ -133,13 +134,7 @@ def _fetch_stan_csv(
     url = _OECD_STAN_URL.format(country=country, var=var, agg=agg)
     try:
         raw = safe_get_bytes(url, timeout=timeout)
-    except (
-        ValueError,
-        ArithmeticError,
-        np.linalg.LinAlgError,
-        ConnectionError,
-        Exception,
-    ):
+    except (ValueError, ArithmeticError, np.linalg.LinAlgError, ConnectionError, Exception):
         return pd.DataFrame(columns=["year", "value"])
     if raw is None or len(raw) == 0:
         return pd.DataFrame(columns=["year", "value"])
@@ -148,19 +143,14 @@ def _fetch_stan_csv(
     except (ValueError, ArithmeticError, np.linalg.LinAlgError, Exception):
         return pd.DataFrame(columns=["year", "value"])
     # OECD CSV format: look for time/period column + value column.
-    time_col = next(
-        (c for c in df.columns if c.upper() in {"TIME_PERIOD", "TIME", "OBS_TIME"}),
-        None,
-    )
+    time_col = next((c for c in df.columns if c.upper() in {"TIME_PERIOD", "TIME", "OBS_TIME"}), None)
     val_col = next((c for c in df.columns if c.upper() in {"OBS_VALUE", "VALUE"}), None)
     if time_col is None or val_col is None:
         return pd.DataFrame(columns=["year", "value"])
-    out = pd.DataFrame(
-        {
-            "year": pd.to_numeric(df[time_col], errors="coerce"),
-            "value": pd.to_numeric(df[val_col], errors="coerce"),
-        }
-    ).dropna()
+    out = pd.DataFrame({
+        "year": pd.to_numeric(df[time_col], errors="coerce"),
+        "value": pd.to_numeric(df[val_col], errors="coerce"),
+    }).dropna()
     out["year"] = out["year"].astype(int)
     return out
 
@@ -208,11 +198,7 @@ def load_oecd_stan_ls(
         rows.append(merged[["code", "year", "log_LS_stan"]])
     if not rows:
         return pd.DataFrame(columns=["code", "year", "log_LS_stan"])
-    return (
-        pd.concat(rows, ignore_index=True)
-        .sort_values(["code", "year"])
-        .reset_index(drop=True)
-    )
+    return pd.concat(rows, ignore_index=True).sort_values(["code", "year"]).reset_index(drop=True)
 
 
 def _klems_legacy_dir() -> Path:
@@ -253,17 +239,12 @@ def load_klems_legacy(
         years = [c for c in sheet.columns if isinstance(c, (int, float))]
         if not years:
             continue
-        long = sheet.melt(
-            id_vars="var", value_vars=years, var_name="year", value_name="value"
-        )
+        long = sheet.melt(id_vars="var", value_vars=years,
+                          var_name="year", value_name="value")
         long["year"] = long["year"].astype(int)
         long = long[(long["year"] >= start) & (long["year"] <= end)]
-        labr = long[long["var"].astype(str).str.upper() == "LAB"].set_index("year")[
-            "value"
-        ]
-        valu = long[long["var"].astype(str).str.upper() == "VA"].set_index("year")[
-            "value"
-        ]
+        labr = long[long["var"].astype(str).str.upper() == "LAB"].set_index("year")["value"]
+        valu = long[long["var"].astype(str).str.upper() == "VA"].set_index("year")["value"]
         df = pd.concat({"labr": labr, "valu": valu}, axis=1).dropna()
         df = df[(df["labr"] > 0) & (df["valu"] > 0)]
         if len(df) == 0:
@@ -279,76 +260,6 @@ def load_klems_legacy(
         .sort_values(["code", "year"])
         .reset_index(drop=True)
     )
-
-
-def _get_pwt_sources(
-    countries: list[str], start: int
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    pk = pd.DataFrame(columns=["code", "year", "log_relprice_equip", "vintage_PK"])
-    ls_pwt = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
-    try:
-        pwt = load_pwt10(countries=countries, start=start, end=2019)
-        if len(pwt) > 0:
-            pk = pwt.dropna(subset=["log_relprice_equip"])[
-                ["code", "year", "log_relprice_equip"]
-            ].copy()
-            pk["vintage_PK"] = "pwt10"
-            ls_pwt_src = pwt.dropna(subset=["log_LS_pwt"])[
-                ["code", "year", "log_LS_pwt"]
-            ].copy()
-            ls_pwt_src = ls_pwt_src.rename(columns={"log_LS_pwt": "log_LS"})
-            ls_pwt_src["vintage_LS"] = "pwt10_labsh"
-            ls_pwt = ls_pwt_src
-    except FileNotFoundError:
-        pass
-    return pk, ls_pwt
-
-
-def _get_klems2023_ls() -> pd.DataFrame:
-    ls_klems2023 = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
-    try:
-        from puremacro.klems import load_klems_panel
-
-        cache_dir = _ROOT / "data" / "raw" / "euklems"
-        kdf = load_klems_panel(
-            cache_dir=cache_dir,
-            industry="TOT",
-            equip_def="tangible",
-            include_investment=False,
-        )
-        if len(kdf) > 0:
-            sub = kdf.dropna(subset=["comp_total", "va"]).copy()
-            sub = sub[(sub["comp_total"] > 0) & (sub["va"] > 0)]
-            sub["log_LS"] = np.log(sub["comp_total"]) - np.log(sub["va"])
-            sub["vintage_LS"] = "klems2023"
-            ls_klems2023 = sub[["code", "year", "log_LS", "vintage_LS"]]
-    except Exception:
-        pass
-    return ls_klems2023
-
-
-def _get_stan_ls(countries: list[str], start: int, end: int) -> pd.DataFrame:
-    ls_stan = load_oecd_stan_ls(countries=countries, start=start, end=end).rename(
-        columns={"log_LS_stan": "log_LS"}
-    )
-    if len(ls_stan) > 0:
-        ls_stan = ls_stan.copy()
-        ls_stan["vintage_LS"] = "oecd_stan"
-    else:
-        ls_stan = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
-    return ls_stan
-
-
-def _get_klems_legacy_ls(countries: list[str], start: int) -> pd.DataFrame:
-    ls_klems_leg = load_klems_legacy(countries=countries, start=start, end=2007).rename(
-        columns={"log_LS_klems_leg": "log_LS"}
-    )
-    if len(ls_klems_leg) > 0:
-        ls_klems_leg = ls_klems_leg.copy()
-        ls_klems_leg["vintage_LS"] = "klems_legacy_08"
-    else:
-        ls_klems_leg = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
-    return ls_klems_leg
 
 
 def build_g9_long_panel(
@@ -378,21 +289,64 @@ def build_g9_long_panel(
     The ``vintage_LS`` and ``vintage_PK`` columns flag which source
     supplied each (code, year) cell, for the splice audit.
     """
-    countries_list = list(countries)
+    # ---- log_relprice_equip + log_LS_pwt: PWT 10.0 ----
+    pk = pd.DataFrame(columns=["code", "year", "log_relprice_equip", "vintage_PK"])
+    ls_pwt = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
+    try:
+        pwt = load_pwt10(countries=list(countries), start=start, end=2019)
+        if len(pwt) > 0:
+            pk = pwt.dropna(subset=["log_relprice_equip"])[
+                ["code", "year", "log_relprice_equip"]
+            ].copy()
+            pk["vintage_PK"] = "pwt10"
+            ls_pwt_src = pwt.dropna(subset=["log_LS_pwt"])[
+                ["code", "year", "log_LS_pwt"]
+            ].copy()
+            ls_pwt_src = ls_pwt_src.rename(columns={"log_LS_pwt": "log_LS"})
+            ls_pwt_src["vintage_LS"] = "pwt10_labsh"
+            ls_pwt = ls_pwt_src
+    except FileNotFoundError:
+        pass
 
-    # ---- Fetch sources using helper functions ----
-    pk, ls_pwt = _get_pwt_sources(countries_list, start)
-    ls_klems2023 = _get_klems2023_ls()
-    ls_stan = _get_stan_ls(countries_list, start, end)
-    ls_klems_leg = _get_klems_legacy_ls(countries_list, start)
+    # ---- log_LS: KLEMS-2023 (priority 1) ----
+    ls_klems2023 = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
+    try:
+        from puremacro.klems import load_klems_panel
+        cache_dir = _ROOT / "data" / "raw" / "euklems"
+        kdf = load_klems_panel(cache_dir=cache_dir, industry="TOT", equip_def="tangible",
+                               include_investment=False)
+        if len(kdf) > 0:
+            sub = kdf.dropna(subset=["comp_total", "va"]).copy()
+            sub = sub[(sub["comp_total"] > 0) & (sub["va"] > 0)]
+            sub["log_LS"] = np.log(sub["comp_total"]) - np.log(sub["va"])
+            sub["vintage_LS"] = "klems2023"
+            ls_klems2023 = sub[["code", "year", "log_LS", "vintage_LS"]]
+    except (ValueError, ArithmeticError, np.linalg.LinAlgError, TypeError, Exception):
+        pass
+
+    # ---- log_LS: OECD-STAN (priority 2) ----
+    ls_stan = load_oecd_stan_ls(
+        countries=list(countries), start=start, end=end
+    ).rename(columns={"log_LS_stan": "log_LS"})
+    if len(ls_stan) > 0:
+        ls_stan = ls_stan.copy()
+        ls_stan["vintage_LS"] = "oecd_stan"
+    else:
+        ls_stan = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
+
+    # ---- log_LS: EU-KLEMS legacy (priority 3) ----
+    ls_klems_leg = load_klems_legacy(
+        countries=list(countries), start=start, end=2007
+    ).rename(columns={"log_LS_klems_leg": "log_LS"})
+    if len(ls_klems_leg) > 0:
+        ls_klems_leg = ls_klems_leg.copy()
+        ls_klems_leg["vintage_LS"] = "klems_legacy_08"
+    else:
+        ls_klems_leg = pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
 
     # Concatenate, filling NaN where one source provides a column the others don't.
     sources = [s for s in [ls_pwt, ls_klems2023, ls_stan, ls_klems_leg] if len(s) > 0]
-    ls_all = (
-        pd.concat(sources, ignore_index=True)
-        if sources
-        else pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
-    )
+    ls_all = pd.concat(sources, ignore_index=True) if sources else pd.DataFrame(columns=["code", "year", "log_LS", "vintage_LS"])
     if len(ls_all) > 0:
         priority = {
             "pwt10_labsh": 0,
@@ -420,14 +374,8 @@ def build_g9_long_panel(
         panel["vintage_LS"] = pd.NA
     else:
         panel = pd.DataFrame(
-            columns=[
-                "code",
-                "year",
-                "log_LS",
-                "vintage_LS",
-                "log_relprice_equip",
-                "vintage_PK",
-            ]
+            columns=["code", "year", "log_LS", "vintage_LS",
+                     "log_relprice_equip", "vintage_PK"]
         )
 
     if len(panel) > 0:
@@ -463,21 +411,18 @@ def splice_audit(panel: pd.DataFrame) -> pd.DataFrame:
         stan = load_oecd_stan_ls(countries=[code], start=ymin, end=ymax)
         klems_leg = load_klems_legacy(countries=[code], start=ymin, end=ymax)
         if len(stan) == 0 or len(klems_leg) == 0:
-            rows.append(
-                {"code": code, "overlap_n": 0, "mad_LS_pp": np.nan, "mad_PK_pp": np.nan}
-            )
+            rows.append({"code": code, "overlap_n": 0,
+                         "mad_LS_pp": np.nan, "mad_PK_pp": np.nan})
             continue
         merged = stan.merge(klems_leg, on=["code", "year"], how="inner")
         n = len(merged)
         if n == 0:
-            rows.append(
-                {"code": code, "overlap_n": 0, "mad_LS_pp": np.nan, "mad_PK_pp": np.nan}
-            )
+            rows.append({"code": code, "overlap_n": 0,
+                         "mad_LS_pp": np.nan, "mad_PK_pp": np.nan})
             continue
         ls_stan = np.exp(merged["log_LS_stan"])
         ls_legacy = np.exp(merged["log_LS_klems_leg"])
         mad_ls_pp = float(np.mean(np.abs(ls_stan - ls_legacy)) * 100.0)
-        rows.append(
-            {"code": code, "overlap_n": n, "mad_LS_pp": mad_ls_pp, "mad_PK_pp": np.nan}
-        )
+        rows.append({"code": code, "overlap_n": n,
+                     "mad_LS_pp": mad_ls_pp, "mad_PK_pp": np.nan})
     return pd.DataFrame(rows)
