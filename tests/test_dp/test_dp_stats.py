@@ -28,6 +28,50 @@ def test_two_point_gini_closed_form():
         assert _wstats.w_gini(x, W)[0] == pytest.approx(p, abs=1e-15)
 
 
+
+def test_two_point_top_share_fractional_cutoff():
+    # 0.6 mass at 1.0, 0.4 mass at 2.0.
+    # Total mass = 1.0, Total sum = 0.6*1.0 + 0.4*2.0 = 1.4
+    x = np.array([1.0, 2.0])
+    W = np.array([[0.6], [0.4]])
+
+    # Top 0.5:
+    # Requires all 0.4 from 2.0 and 0.1 from 1.0.
+    # Total in top 0.5 = 0.4*2.0 + 0.1*1.0 = 0.9. Share = 0.9 / 1.4
+    assert _wstats.w_top_share(x, W, 0.5)[0] == pytest.approx(0.9 / 1.4, abs=1e-15)
+
+    # Top 0.2:
+    # Requires 0.2 from 2.0.
+    # Total in top 0.2 = 0.2*2.0 = 0.4. Share = 0.4 / 1.4
+    assert _wstats.w_top_share(x, W, 0.2)[0] == pytest.approx(0.4 / 1.4, abs=1e-15)
+
+    # Top 0.8:
+    # Requires all 0.4 from 2.0 and 0.4 from 1.0.
+    # Total in top 0.8 = 0.4*2.0 + 0.4*1.0 = 1.2. Share = 1.2 / 1.4
+    assert _wstats.w_top_share(x, W, 0.8)[0] == pytest.approx(1.2 / 1.4, abs=1e-15)
+
+    # Top 1.0:
+    assert _wstats.w_top_share(x, W, 1.0)[0] == pytest.approx(1.0, abs=1e-15)
+
+    # Top 0.0:
+    assert _wstats.w_top_share(x, W, 0.0)[0] == pytest.approx(0.0, abs=1e-15)
+
+
+def test_top_share_zero_or_negative_totals():
+    # If total weight is 0
+    x = np.array([1.0, 2.0])
+    W_zero = np.array([[0.0], [0.0]])
+    assert np.isnan(_wstats.w_top_share(x, W_zero, 0.5)[0])
+
+    # If total sum is <= 0
+    x_neg = np.array([-2.0, -1.0])
+    W = np.array([[0.5], [0.5]])
+    assert np.isnan(_wstats.w_top_share(x_neg, W, 0.5)[0])
+
+    x_zero_sum = np.array([-1.0, 1.0])
+    assert np.isnan(_wstats.w_top_share(x_zero_sum, W, 0.5)[0])
+
+
 def test_gini_matches_microframe_on_the_grid(aiyagari_sol):
     sol = aiyagari_sol
     mf = _grid_frame(sol)
