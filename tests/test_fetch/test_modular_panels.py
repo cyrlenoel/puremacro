@@ -32,7 +32,13 @@ import pandas as pd
 import pytest
 import requests
 
-from puremacro.build_panel import build_all, load_country, merge_frames
+from puremacro.build_panel import (
+    build_all,
+    build_climate_panel as bp_climate_panel,
+    build_financial_panel as bp_financial_panel,
+    load_country,
+    merge_frames,
+)
 from puremacro.climate_panel import build_climate_panel
 from puremacro.financial_panel import build_financial_panel
 
@@ -413,7 +419,7 @@ class TestFinancialPanel:
 class TestModularPanelsReexports:
     """Verify that build_panel.py re-exports new panel builders without regression."""
 
-    def _test_reexport_identity(self):
+    def test_reexport_identity(self):
         """Re-exported functions in build_panel are identical to definitions."""
         assert bp_climate_panel is build_climate_panel
         assert bp_financial_panel is build_financial_panel
@@ -424,7 +430,7 @@ class TestModularPanelsReexports:
         assert callable(load_country)
         assert callable(merge_frames)
 
-    def _test_reexported_callable_smoke(self):
+    def test_reexported_callable_smoke(self):
         """Calling re-exported functions produces valid panels."""
         p_c = bp_climate_panel(codes=["USA"], start_year=2018, frequency="A")
         p_f = bp_financial_panel(codes=["USA"], start_date="2020-01-01", frequency="Q")

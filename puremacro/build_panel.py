@@ -16,6 +16,7 @@ from . import regime_dates as regimes  # Phase 5B rename — date dicts
 from ._codes import drop_aggregates as _drop_aggregates
 from ._codes import is_country
 from .build_subnational_panel import build_all as _build_subnational
+from .climate_panel import build_climate_panel
 from .fetch import (
     epu,
     fernald,
@@ -37,7 +38,17 @@ from .fetch import (
     wui_extras,
     yahoo,
 )
+from .financial_panel import build_financial_panel
 from .uncertainty import build_backbone, build_composite, build_innovation
+
+__all__ = [
+    "build_all",
+    "build_all_subnational",
+    "build_climate_panel",
+    "build_financial_panel",
+    "load_country",
+    "merge_frames",
+]
 
 
 def _drop_aggregates_in_panel(panel: pd.DataFrame) -> pd.DataFrame:
