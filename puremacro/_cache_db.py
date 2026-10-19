@@ -237,28 +237,29 @@ def migrate_from_flat_files(
     if not flat_cache_dir.exists():
         return 0
     migrated = 0
+
+    # ⚡ Bolt: Vectorize row insertions using executemany
+    existing_keys = {row[0] for row in conn.execute("SELECT key FROM http_cache")}
+    records = []
+    to_unlink = []
+
     for bin_path in flat_cache_dir.glob("*.bin"):
         sidecar = bin_path.with_suffix(".json")
         if not sidecar.exists():
             continue
         try:
+            key = bin_path.stem
+            if key in existing_keys:
+                continue
+
             meta = json.loads(sidecar.read_text(encoding="utf-8"))
             url = meta["url"]
             fetched_at = int(float(meta["fetched_at"]))
             content_type = meta.get("content_type")
             body = bin_path.read_bytes()
-            key = bin_path.stem
-            cur = conn.execute(
-                "INSERT OR IGNORE INTO http_cache "
-                "(key, url, fetched_at, content_type, body) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (key, url, fetched_at, content_type, body),
-            )
-            if cur.rowcount > 0:
-                migrated += 1
-                if remove:
-                    bin_path.unlink(missing_ok=True)
-                    sidecar.unlink(missing_ok=True)
+
+            records.append((key, url, fetched_at, content_type, body))
+            to_unlink.append((bin_path, sidecar))
         except (OSError, ValueError, KeyError) as e:
             warnings.warn(
                 f"puremacro._cache_db: skipping {bin_path.name}: {e}",
@@ -266,6 +267,20 @@ def migrate_from_flat_files(
                 stacklevel=2,
             )
             continue
+
+    if records:
+        conn.executemany(
+            "INSERT OR IGNORE INTO http_cache "
+            "(key, url, fetched_at, content_type, body) "
+            "VALUES (?, ?, ?, ?, ?)",
+            records,
+        )
+        migrated += len(records)
+        if remove:
+            for b_path, s_path in to_unlink:
+                b_path.unlink(missing_ok=True)
+                s_path.unlink(missing_ok=True)
+
     conn.commit()
     return migrated
 

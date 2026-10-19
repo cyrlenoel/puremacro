@@ -60,3 +60,6 @@ TEST_READY.md
 /site/
 output/
 uv.lock
+bench_cache/
+bench_cache_small/
+bench_cache/
