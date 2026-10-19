@@ -16,6 +16,7 @@ Includes:
 For likelihood-based estimation, pair the state-space form returned by
 ``make_state_space`` (model-specific) with ``puremacro.dsge.estimate_dsge``.
 """
+
 from .klein import BlanchardKahnError, KleinSolution, klein_solve
 from .build import LinearModel, ModelError, SteadyStateError, build
 from .steady import (
@@ -26,13 +27,24 @@ from .steady import (
 )
 from ._moments import one_sided_hp_filter
 from ._results import (
-    DSGEPosteriorResult, SW07PosteriorResult, NUTSResult, HANKResult,
-    DynareDR, Dynare2ndDR, TheoreticalMomentsResult,
+    DSGEPosteriorResult,
+    SW07PosteriorResult,
+    NUTSResult,
+    HANKResult,
+    DynareDR,
+    Dynare2ndDR,
+    TheoreticalMomentsResult,
     StochSimulResult,
-    SmootherResult, DSGEForecastResult, ModeCheckResult,
-    DiagnosticFinding, EigenvalueTable, ModelDiagnosticsResult,
+    SmootherResult,
+    DSGEForecastResult,
+    ModeCheckResult,
+    DiagnosticFinding,
+    EigenvalueTable,
+    ModelDiagnosticsResult,
     IdentificationResult,
-    OSRResult, PolicyResult, DiscretionaryPolicyResult,
+    OSRResult,
+    PolicyResult,
+    DiscretionaryPolicyResult,
     ExtendedPathResult,
     ConditionalForecastResult,
     ShockDecompositionResult,
@@ -57,7 +69,11 @@ from ._gradients import ScoreDiagnosticsResult
 from .bayesian import BayesianEstimationResult, estimate_dsge_bayesian
 from .sw07_estimate import estimate_sw07
 from .sw07_data import load_sw07_data
-from .sw07_marginal import SW07MarginalLikelihoodResult, sw07_laplace_mdd, sw07_log_posterior
+from .sw07_marginal import (
+    SW07MarginalLikelihoodResult,
+    sw07_laplace_mdd,
+    sw07_log_posterior,
+)
 from .pruning import (
     PrunedDSGESolution,
     PrunedSimulationResult,
@@ -66,11 +82,16 @@ from .pruning import (
 from .macro import DynareMacroError, Scope, preprocess_macro
 from .dynare import (
     DynareFeatureError,
-    build_dynare, parse_mod, load_mod, load_dynare_mod, solve_dynare_2nd_order,
-    _orig_stoch_simul, _linear_model_stoch_simul,
+    build_dynare,
+    parse_mod,
+    load_mod,
+    load_dynare_mod,
+    solve_dynare_2nd_order,
+    _orig_stoch_simul,
+    _linear_model_stoch_simul,
 )
 import functools as _functools
-LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul)
+
 from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
 from .extended_path import extended_path
 from .stacked_newton import (
@@ -164,77 +185,179 @@ from .markov_switching import (
 from . import priors
 from . import marginal, mode, observation, smoother, news
 
-
 __all__ = [
-    "klein_solve", "KleinSolution", "BlanchardKahnError",
-    "build", "LinearModel", "ModelError", "SteadyStateError",
-    "steady", "StructuralSingularityError", "StructuralSingularityWarning",
+    "klein_solve",
+    "KleinSolution",
+    "BlanchardKahnError",
+    "build",
+    "LinearModel",
+    "ModelError",
+    "SteadyStateError",
+    "steady",
+    "StructuralSingularityError",
+    "StructuralSingularityWarning",
     "allow_structural_singularity",
-    "DSGEPosteriorResult", "SW07PosteriorResult", "NUTSResult", "BayesianEstimationResult",
-    "ScoreDiagnosticsResult", "nuts_sample",
-    "DynareDR", "Dynare2ndDR", "TheoreticalMomentsResult", "StochSimulResult",
-    "build_dynare", "parse_mod", "load_mod", "load_dynare_mod", "solve_dynare_2nd_order",
+    "DSGEPosteriorResult",
+    "SW07PosteriorResult",
+    "NUTSResult",
+    "BayesianEstimationResult",
+    "ScoreDiagnosticsResult",
+    "nuts_sample",
+    "DynareDR",
+    "Dynare2ndDR",
+    "TheoreticalMomentsResult",
+    "StochSimulResult",
+    "build_dynare",
+    "parse_mod",
+    "load_mod",
+    "load_dynare_mod",
+    "solve_dynare_2nd_order",
     "DynareFeatureError",
-    "PerfectForesightResult", "solve_perfect_foresight",
+    "PerfectForesightResult",
+    "solve_perfect_foresight",
     # --- Stacked-time Newton-Krylov (opt-in perfect-foresight core) ---------
-    "StackedProblem", "BlockTridiagonalPreconditioner", "StructuredBlockTridiagonalPreconditioner",
-    "preconditioned_lgmres", "solve_stacked_newton_krylov", "compare_stacked_horizons",
-    "StackedNewtonResult", "HorizonComparison", "StackedNewtonError",
-    "OccBinConstraint", "OccBinResult", "solve_occbin", "solve_multiconstraint_occbin",
-    "solve_gertler_karadi", "GertlerKaradiResult", "GK2011_PARAMS", "solve_steady_state", "build_gertler_karadi_model",
-    "estimate_dsge", "estimate_dsge_bayesian", "estimate_sw07",
-    "load_sw07_data", "sw07_laplace_mdd", "sw07_log_posterior", "SW07MarginalLikelihoodResult",
-    "PrunedDSGESolution", "PrunedSimulationResult", "canonical_growth_2nd_order",
-    "FEVDResult", "ShockDecompResult", "compute_fevd", "compute_shock_decomposition",
-    "Prior", "BetaPrior", "InvGammaPrior", "NormalPrior", "GammaPrior", "UniformPrior",
+    "StackedProblem",
+    "BlockTridiagonalPreconditioner",
+    "StructuredBlockTridiagonalPreconditioner",
+    "preconditioned_lgmres",
+    "solve_stacked_newton_krylov",
+    "compare_stacked_horizons",
+    "StackedNewtonResult",
+    "HorizonComparison",
+    "StackedNewtonError",
+    "OccBinConstraint",
+    "OccBinResult",
+    "solve_occbin",
+    "solve_multiconstraint_occbin",
+    "solve_gertler_karadi",
+    "GertlerKaradiResult",
+    "GK2011_PARAMS",
+    "solve_steady_state",
+    "build_gertler_karadi_model",
+    "estimate_dsge",
+    "estimate_dsge_bayesian",
+    "estimate_sw07",
+    "load_sw07_data",
+    "sw07_laplace_mdd",
+    "sw07_log_posterior",
+    "SW07MarginalLikelihoodResult",
+    "PrunedDSGESolution",
+    "PrunedSimulationResult",
+    "canonical_growth_2nd_order",
+    "FEVDResult",
+    "ShockDecompResult",
+    "compute_fevd",
+    "compute_shock_decomposition",
+    "Prior",
+    "BetaPrior",
+    "InvGammaPrior",
+    "NormalPrior",
+    "GammaPrior",
+    "UniformPrior",
     "WeibullPrior",
     # --- 2.6.0: .mod file to posterior -----------------------------------
-    "EstimatedParams", "EstimatedParamSpec", "parse_estimated_params",
-    "parse_estimated_params_init", "parse_estimated_params_bounds",
+    "EstimatedParams",
+    "EstimatedParamSpec",
+    "parse_estimated_params",
+    "parse_estimated_params_init",
+    "parse_estimated_params_bounds",
     "make_state_space_from_varobs",
-    "SmootherResult", "DSGEForecastResult", "smooth_model", "forecast_model",
-    "find_mode", "mode_check", "csminwel", "cmaes", "ModeCheckResult",
-    "laplace_mdd", "harmonic_mean_mdd", "model_comparison", "HarmonicMeanResult",
-    "marginal", "mode", "observation", "smoother",
+    "SmootherResult",
+    "DSGEForecastResult",
+    "smooth_model",
+    "forecast_model",
+    "find_mode",
+    "mode_check",
+    "csminwel",
+    "cmaes",
+    "ModeCheckResult",
+    "laplace_mdd",
+    "harmonic_mean_mdd",
+    "model_comparison",
+    "HarmonicMeanResult",
+    "marginal",
+    "mode",
+    "observation",
+    "smoother",
     "priors",
     # --- 2.6.0: DSGE Diagnostics & Residuals ------------------------------
-    "check", "resid", "model_diagnostics",
-    "EigenvalueTable", "ModelDiagnosticsResult", "DiagnosticFinding",
+    "check",
+    "resid",
+    "model_diagnostics",
+    "EigenvalueTable",
+    "ModelDiagnosticsResult",
+    "DiagnosticFinding",
     # --- 2.6.0: Parameter Identification Analysis ------------------------
-    "identification", "IdentificationResult",
+    "identification",
+    "IdentificationResult",
     # --- 2.6.0: Optimal Simple Rules & Policy Regimes --------------------
-    "osr", "discretionary_policy", "lq_commitment", "optimal_policy",
-    "OSRResult", "PolicyResult", "DiscretionaryPolicyResult",
+    "osr",
+    "discretionary_policy",
+    "lq_commitment",
+    "optimal_policy",
+    "OSRResult",
+    "PolicyResult",
+    "DiscretionaryPolicyResult",
     # --- 2.9.0: stoch_simul Filtering & Simulation Surface ---------------
     "one_sided_hp_filter",
     # --- 2.9.0: Extended Path (Fair-Taylor 1983) -------------------------
-    "extended_path", "ExtendedPathResult",
+    "extended_path",
+    "ExtendedPathResult",
     # --- 2.9.0: Tier 3 Surface -------------------------------------------
-    "conditional_forecast", "ConditionalForecastResult",
-    "shock_groups_decomposition", "ShockDecompositionResult",
-    "bayesian_irf", "BayesianIRFResult",
-    "prior_predictive", "PriorPredictiveResult",
+    "conditional_forecast",
+    "ConditionalForecastResult",
+    "shock_groups_decomposition",
+    "ShockDecompositionResult",
+    "bayesian_irf",
+    "BayesianIRFResult",
+    "prior_predictive",
+    "PriorPredictiveResult",
     # --- 2.9.0: Dynare Parity Dashboard & CLI ----------------------------
-    "verify_dynare_parity", "compare_model_to_dynare", "run_parity_suite",
-    "load_dynare_dr", "load_dynare_moments", "load_irfs", "load_fevd",
-    "ParityDashboardResult", "ModelParityResult",
-    "dynare_results", "parity",
+    "verify_dynare_parity",
+    "compare_model_to_dynare",
+    "run_parity_suite",
+    "load_dynare_dr",
+    "load_dynare_moments",
+    "load_irfs",
+    "load_fevd",
+    "ParityDashboardResult",
+    "ModelParityResult",
+    "dynare_results",
+    "parity",
     # --- 3.0.0: Sequence-Space HANK Bridge -------------------------------
-    "HANKModel", "HANKResult", "load_hank_mod", "solve_hank_bridge",
+    "HANKModel",
+    "HANKResult",
+    "load_hank_mod",
+    "solve_hank_bridge",
     "hank",
     # --- Dynare Macro Processor & Interactive Widgets --------------------
-    "preprocess_macro", "DynareMacroError", "Scope",
-    "interactive_irf", "InteractiveIRFResult",
-    "macro", "widgets",
+    "preprocess_macro",
+    "DynareMacroError",
+    "Scope",
+    "interactive_irf",
+    "InteractiveIRFResult",
+    "macro",
+    "widgets",
     # --- Del Negro & Schorfheide (2004) DSGE-VAR Hybrid Modeling ---------
-    "estimate_dsge_var", "DSGEVARResult",
+    "estimate_dsge_var",
+    "DSGEVARResult",
     # --- Milestone 3: News & Anticipated Shocks Engine -------------------
-    "NewsIRFResult", "NewsDecompositionResult", "news_irf", "decompose_news", "plot_news_vs_surprise",
+    "NewsIRFResult",
+    "NewsDecompositionResult",
+    "news_irf",
+    "decompose_news",
+    "plot_news_vs_surprise",
     "news",
     # --- Phase D: Particle Filtering & Markov-Switching DSGE -------------
-    "particle_filter", "ParticleFilterResult", "StochasticVolatilitySpec",
-    "systematic_resample", "stratified_resample", "residual_resample", "multinomial_resample",
-    "solve_ms_dsge", "MSDSGEResult",
+    "particle_filter",
+    "ParticleFilterResult",
+    "StochasticVolatilitySpec",
+    "systematic_resample",
+    "stratified_resample",
+    "residual_resample",
+    "multinomial_resample",
+    "solve_ms_dsge",
+    "MSDSGEResult",
     "markov_switching",
 ]
 from . import smets_wouters  # re-export for back-compat with 0.50.0 callers
@@ -254,6 +377,7 @@ class _EstimateModule(_types.ModuleType):
 
     def __call__(self, *args, **kwargs):
         from .estimate import estimate as _estimate_func
+
         return _estimate_func(*args, **kwargs)
 
 
@@ -267,11 +391,6 @@ particle_filter.systematic_resample = systematic_resample
 particle_filter.stratified_resample = stratified_resample
 particle_filter.residual_resample = residual_resample
 particle_filter.multinomial_resample = multinomial_resample
-
-
-
-
-
 
 
 def __getattr__(name: str):

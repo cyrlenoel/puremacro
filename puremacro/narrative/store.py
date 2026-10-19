@@ -245,6 +245,7 @@ class CorpusStore:
                             version,
                         )
                     )
+                    existing_hashes[d.doc_id] = h  # update the local cache so subsequent duplicates update instead of insert again
                 elif existing_h == h:
                     updates_unchanged.append((ts, d.doc_id))
                 else:
@@ -262,6 +263,7 @@ class CorpusStore:
                             d.doc_id,
                         )
                     )
+                    existing_hashes[d.doc_id] = h  # update local cache for subsequent duplicates
 
             if inserts:
                 cur.executemany(

@@ -39,6 +39,7 @@ sizes), ``apply_style(perfil="lamina")`` (slide type sizes) and
 ``exportar(fig, nombre)`` (vector PDF for the decks; a no-op unless
 ``$MAV_EXPORTAR_FIGURAS`` names a folder).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -66,8 +67,13 @@ _FT2FONT_ENUMS = ("LoadFlags", "Kerning", "RenderMode")
 
 # Modules that pass those enums into compiled ft2font calls.  Imported eagerly
 # so a lazily loaded one cannot keep a stale copy the repair never saw.
-_FT2FONT_USERS = ("_mathtext", "_text_helpers", "mathtext", "textpath",
-                  "backends.backend_agg")
+_FT2FONT_USERS = (
+    "_mathtext",
+    "_text_helpers",
+    "mathtext",
+    "textpath",
+    "backends.backend_agg",
+)
 
 
 def _matplotlib_modules():
@@ -87,6 +93,7 @@ def _enum_named(module, name):
 def _live_font():
     from matplotlib.backends.backend_agg import RendererAgg
     from matplotlib.font_manager import FontProperties
+
     return RendererAgg(4, 4, 72)._prepare_font(FontProperties())
 
 
@@ -94,9 +101,11 @@ def _text_measures() -> bool:
     """True if matplotlib can measure a string with the Agg renderer."""
     from matplotlib.backends.backend_agg import RendererAgg
     from matplotlib.font_manager import FontProperties
+
     try:
         RendererAgg(4, 4, 72).get_text_width_height_descent(
-            "lp", FontProperties(), False)
+            "lp", FontProperties(), False
+        )
         return True
     except Exception:
         return False
@@ -106,6 +115,7 @@ def _text_renders() -> bool:
     """True if matplotlib can rasterize a string, not merely measure it."""
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.figure import Figure
+
     figure = Figure(figsize=(1, 1))
     FigureCanvasAgg(figure)
     figure.text(0.5, 0.5, "lp")
@@ -142,7 +152,7 @@ def _rebind_to_accepted_enums():
         except Exception:
             continue
         undone = []
-        for name in _FT2FONT_ENUMS:                 # all three from one module,
+        for name in _FT2FONT_ENUMS:  # all three from one module,
             accepted = getattr(module, name, None)  # so they cannot disagree
             if accepted is not None:
                 undone += _swap(name, accepted)
@@ -159,14 +169,19 @@ def _rebind_enums_as_ints():
     """
     undone = []
     for name in ("LoadFlags", "Kerning"):
-        source = next(filter(None, (_enum_named(m, name)
-                                    for m in _matplotlib_modules())), None)
+        source = next(
+            filter(None, (_enum_named(m, name) for m in _matplotlib_modules())), None
+        )
         if source is None:
             continue
         # __members__, not iteration: iterating a Flag skips its zero-valued
         # member, and LoadFlags.DEFAULT is exactly that.
-        undone += _swap(name, types.SimpleNamespace(
-            **{n: m.value for n, m in source.__members__.items()}))
+        undone += _swap(
+            name,
+            types.SimpleNamespace(
+                **{n: m.value for n, m in source.__members__.items()}
+            ),
+        )
     return undone
 
 
@@ -195,8 +210,10 @@ def repair_ft2font_enums() -> bool:
                 # Integer flags are deprecated since 3.10; here they are the
                 # only ones that work, so keep the notice out of the output.
                 warnings.filterwarnings(
-                    "ignore", message=".*flags parameter as int.*",
-                    category=mpl.MatplotlibDeprecationWarning)
+                    "ignore",
+                    message=".*flags parameter as int.*",
+                    category=mpl.MatplotlibDeprecationWarning,
+                )
             return True
         for module, name, previous in reversed(undone):
             setattr(module, name, previous)
@@ -213,17 +230,24 @@ def enable_inline_backend() -> bool:
         ip = None
         if "IPython" in sys.modules:
             import IPython
+
             ip = IPython.get_ipython()
-        elif "get_ipython" in globals() or (isinstance(__builtins__, dict) and "get_ipython" in __builtins__) or hasattr(__builtins__, "get_ipython"):
-            get_ip = (
-                globals().get("get_ipython")
-                or (__builtins__.get("get_ipython") if isinstance(__builtins__, dict) else getattr(__builtins__, "get_ipython", None))
+        elif (
+            "get_ipython" in globals()
+            or (isinstance(__builtins__, dict) and "get_ipython" in __builtins__)
+            or hasattr(__builtins__, "get_ipython")
+        ):
+            get_ip = globals().get("get_ipython") or (
+                __builtins__.get("get_ipython")
+                if isinstance(__builtins__, dict)
+                else getattr(__builtins__, "get_ipython", None)
             )
             if callable(get_ip):
                 ip = get_ip()
         else:
             try:
                 import IPython
+
                 ip = IPython.get_ipython()
             except ImportError:
                 ip = None
@@ -234,7 +258,6 @@ def enable_inline_backend() -> bool:
     except Exception:
         pass
     return False
-
 
 
 # ---------------------------------------------------------------------------
@@ -272,8 +295,8 @@ MARKERS = ["o", "s", "^", "D", "v", "P"]
 _F_BARRAS = (0.86, 0.60, 0.38, 0.22)
 BARRA_HATCH = ("", "//", "..", "xx")
 EPISODIO_MARCA = ("o", "s", "^", "D", "v")
-BANDA_ALPHA = 0.16      # confidence bands: ink over the card
-RECESION_ALPHA = 0.10   # shaded episodes: fainter than a band, heavier than the grid
+BANDA_ALPHA = 0.16  # confidence bands: ink over the card
+RECESION_ALPHA = 0.10  # shaded episodes: fainter than a band, heavier than the grid
 
 
 def _lineal(c):
@@ -289,7 +312,9 @@ def _codificar(y):
 def _claridad(color) -> float:
     """OKLab lightness of *color* seen as a gray: cube root of its luminance."""
     r, g, b = mpl.colors.to_rgb(color)
-    return float((0.2126 * _lineal(r) + 0.7152 * _lineal(g) + 0.0722 * _lineal(b)) ** (1 / 3))
+    return float(
+        (0.2126 * _lineal(r) + 0.7152 * _lineal(g) + 0.0722 * _lineal(b)) ** (1 / 3)
+    )
 
 
 def _hex(lightness) -> str:
@@ -338,10 +363,15 @@ def _usar_tema(nombre: str) -> None:
 
     series = [tono(t) for t, _, _ in _SERIES]
     tokens = dict(
-        TINTA=tono(_F_TINTA), TEXTO=tono(_F_TEXTO), NOTA=tono(_F_NOTA),
-        SPINE=tono(_F_SPINE), REJILLA=tono(_F_REJILLA),
+        TINTA=tono(_F_TINTA),
+        TEXTO=tono(_F_TEXTO),
+        NOTA=tono(_F_NOTA),
+        SPINE=tono(_F_SPINE),
+        REJILLA=tono(_F_REJILLA),
         UNIVERSAL_COLORS=series,
-        GRAYS=[tono(t) for t in np.linspace(1.0, 0.42, 8)],   # 0.42: >= 3:1 on either card
+        GRAYS=[
+            tono(t) for t in np.linspace(1.0, 0.42, 8)
+        ],  # 0.42: >= 3:1 on either card
         BARRA_COLORES=tuple(tono(t) for t in _F_BARRAS),
         EPISODIO_COLORES=tuple(tono(t) for t in (1.00, 0.70, 0.44, 0.86, 0.56)),
     )
@@ -353,19 +383,31 @@ def _usar_tema(nombre: str) -> None:
 
     ink = mpl.colors.to_rgb(tokens["TINTA"])
     tokens.update(
-        BANDA_HEX=tokens["TINTA"], BANDA=(*ink, BANDA_ALPHA), BANDA_BORDE=tokens["NOTA"],
-        RECESION_HEX=tokens["TINTA"], RECESION=(*ink, RECESION_ALPHA),
+        BANDA_HEX=tokens["TINTA"],
+        BANDA=(*ink, BANDA_ALPHA),
+        BANDA_BORDE=tokens["NOTA"],
+        RECESION_HEX=tokens["TINTA"],
+        RECESION=(*ink, RECESION_ALPHA),
         FLECHA=dict(arrowstyle="->", color=tokens["NOTA"], lw=0.9),
         COLOR_CYCLER=cycler(color=series),
-        UNIVERSAL_CYCLER=(cycler(color=series) + cycler(linestyle=LINESTYLES)
-                          + cycler(marker=MARKERS)),
+        UNIVERSAL_CYCLER=(
+            cycler(color=series) + cycler(linestyle=LINESTYLES) + cycler(marker=MARKERS)
+        ),
     )
     tokens["SEMANTIC_COLORS"] = {
-        "card": FONDO, "text": tokens["TINTA"], "label": tokens["TEXTO"],
-        "note": tokens["NOTA"], "spine": tokens["SPINE"], "grid": tokens["REJILLA"],
-        "grid_alpha": 1.0, "grid_lw": 0.6, "recession": tokens["RECESION_HEX"],
-        "recession_alpha": RECESION_ALPHA, "band": tokens["BANDA_HEX"],
-        "band_alpha": BANDA_ALPHA, "arrow": tokens["NOTA"],
+        "card": FONDO,
+        "text": tokens["TINTA"],
+        "label": tokens["TEXTO"],
+        "note": tokens["NOTA"],
+        "spine": tokens["SPINE"],
+        "grid": tokens["REJILLA"],
+        "grid_alpha": 1.0,
+        "grid_lw": 0.6,
+        "recession": tokens["RECESION_HEX"],
+        "recession_alpha": RECESION_ALPHA,
+        "band": tokens["BANDA_HEX"],
+        "band_alpha": BANDA_ALPHA,
+        "arrow": tokens["NOTA"],
     }
     globals().update(tokens)
     _registrar_mapas()
@@ -384,7 +426,7 @@ def _registrar_mapas() -> None:
     CMAP_SEQ = mpl.colors.LinearSegmentedColormap.from_list("mav_seq", anchors, N=256)
     CMAP_SEQ_R = CMAP_SEQ.reversed()
     for cmap in (CMAP_SEQ, CMAP_SEQ_R):
-        with warnings.catch_warnings():   # re-registering on a theme switch is the point
+        with warnings.catch_warnings():  # re-registering on a theme switch is the point
             warnings.simplefilter("ignore", UserWarning)
             mpl.colormaps.register(cmap, name=cmap.name, force=True)
 
@@ -396,13 +438,13 @@ def _registrar_mapas() -> None:
 # is ~1000 px wide, so a 6.4-in figure shows at full size and a 9.6-in one is
 # scaled to ~2/3 -- which is why the two-panel widths stay under 10 in.
 TAMANO = {
-    "1": (6.4, 4.0),          # one panel
-    "1_alto": (6.4, 5.0),     # one panel, taller (phase diagrams, maps)
-    "1_bajo": (6.4, 3.0),     # one panel, a strip (a single time series)
-    "ancho": (9.6, 3.6),      # one wide panel (long time series, many bars)
-    "2": (9.6, 4.0),          # two panels side by side
+    "1": (6.4, 4.0),  # one panel
+    "1_alto": (6.4, 5.0),  # one panel, taller (phase diagrams, maps)
+    "1_bajo": (6.4, 3.0),  # one panel, a strip (a single time series)
+    "ancho": (9.6, 3.6),  # one wide panel (long time series, many bars)
+    "2": (9.6, 4.0),  # two panels side by side
     "2_alto": (9.6, 5.0),
-    "3": (11.4, 3.8),         # three panels side by side
+    "3": (11.4, 3.8),  # three panels side by side
     "2x2": (9.6, 7.2),
     "2x3": (11.4, 7.2),
     "3x2": (9.6, 9.6),
@@ -415,23 +457,41 @@ TAMANO = {
 # at the size they were drawn (see the "lamina" profile), so the figure's
 # type matches the slide's.
 LAMINA = {
-    "ancha": (5.5, 2.5),      # full width, one row of panels
-    "ancha_baja": (5.5, 1.9), # full width, a strip
-    "completa": (5.5, 2.9),   # full width, the whole body (no text)
-    "media": (2.65, 2.3),     # a 0.48\textwidth column
+    "ancha": (5.5, 2.5),  # full width, one row of panels
+    "ancha_baja": (5.5, 1.9),  # full width, a strip
+    "completa": (5.5, 2.9),  # full width, the whole body (no text)
+    "media": (2.65, 2.3),  # a 0.48\textwidth column
     "media_alta": (2.65, 2.8),
     "media_baja": (2.65, 1.8),
-    "tercio": (1.75, 1.9),    # a third of the width
+    "tercio": (1.75, 1.9),  # a third of the width
     "dos_tercios": (3.6, 2.5),
 }
 
 PERFILES = {
     # (font.size, axes.titlesize, tick labelsize, legend/notes, lines.linewidth,
     #  figure.figsize, savefig.pad_inches, axes.titlepad, axes.labelpad)
-    "cuaderno": dict(font=12, titulo=12, tick=11, nota=11, lw=2.0,
-                     figsize=TAMANO["1"], pad=0.18, titlepad=10, labelpad=6),
-    "lamina": dict(font=8.5, titulo=9, tick=8, nota=8, lw=1.5,
-                   figsize=LAMINA["media"], pad=0.04, titlepad=5, labelpad=3),
+    "cuaderno": dict(
+        font=12,
+        titulo=12,
+        tick=11,
+        nota=11,
+        lw=2.0,
+        figsize=TAMANO["1"],
+        pad=0.18,
+        titlepad=10,
+        labelpad=6,
+    ),
+    "lamina": dict(
+        font=8.5,
+        titulo=9,
+        tick=8,
+        nota=8,
+        lw=1.5,
+        figsize=LAMINA["media"],
+        pad=0.04,
+        titlepad=5,
+        labelpad=3,
+    ),
 }
 PERFIL_POR_OMISION = "cuaderno"
 
@@ -441,10 +501,19 @@ def _perfil_por_omision() -> str:
     return perfil if perfil in PERFILES else PERFIL_POR_OMISION
 
 
-def tamano(nrows: int = 1, ncols: int = 1, *, alto: bool = False) -> tuple[float, float]:
+def tamano(
+    nrows: int = 1, ncols: int = 1, *, alto: bool = False
+) -> tuple[float, float]:
     """The notebook size for an *nrows* x *ncols* grid (from ``TAMANO``)."""
-    clave = {(1, 1): "1", (1, 2): "2", (1, 3): "3", (2, 2): "2x2", (2, 3): "2x3",
-             (3, 2): "3x2", (3, 3): "3x3"}.get((nrows, ncols))
+    clave = {
+        (1, 1): "1",
+        (1, 2): "2",
+        (1, 3): "3",
+        (2, 2): "2x2",
+        (2, 3): "2x3",
+        (3, 2): "3x2",
+        (3, 3): "3x3",
+    }.get((nrows, ncols))
     if clave is None:
         w = min(6.4 * ncols, 11.4)
         return (w, min(3.6 * nrows + 0.4, 10.2))
@@ -453,91 +522,128 @@ def tamano(nrows: int = 1, ncols: int = 1, *, alto: bool = False) -> tuple[float
     return TAMANO[clave]
 
 
-def figura(nrows: int = 1, ncols: int = 1, *, figsize=None, alto: bool | float = False,
-           layout: str | None = "constrained", ancho: float | None = None, **kwargs):
+def figura(
+    nrows: int = 1,
+    ncols: int = 1,
+    *,
+    figsize=None,
+    alto=False,
+    layout: str | None = "constrained",
+    ancho=None,
+    **kwargs,
+):
     """``plt.subplots`` with the course size for the grid and constrained layout.
 
     ``figsize`` can be a key of ``TAMANO`` (or of ``LAMINA``) or a pair of
     inches.  A figure made here needs no ``tight_layout()``.
     """
-    if isinstance(figsize, str):
-        figsize = TAMANO.get(figsize) or LAMINA.get(figsize) or TAMANO["ancho"]
-    if ancho is not None or (isinstance(alto, (int, float)) and not isinstance(alto, bool)):
-        base_w, base_h = tamano(nrows, ncols, alto=bool(alto) if isinstance(alto, bool) else False)
-        w = float(ancho) if ancho is not None else (figsize[0] if figsize else base_w)
-        h = float(alto) if (isinstance(alto, (int, float)) and not isinstance(alto, bool)) else (figsize[1] if figsize else base_h)
-        figsize = (w, h)
-    elif figsize is None:
-        figsize = tamano(nrows, ncols, alto=bool(alto))
-    if layout is not None:
-        kwargs.setdefault("layout", layout)
-    return plt.subplots(nrows, ncols, figsize=figsize, **kwargs)
+    if figsize is None:
+        if isinstance(alto, bool):
+            figsize = tamano(nrows, ncols, alto=alto)
+        else:
+            figsize = tamano(nrows, ncols, alto=False)
+    elif isinstance(figsize, str):
+        figsize = TAMANO.get(figsize) or LAMINA[figsize]
+
+    w, h = figsize
+    if ancho is not None:
+        w = ancho
+    if not isinstance(alto, bool):
+        h = alto
+
+    return plt.subplots(nrows, ncols, figsize=(w, h), layout=layout, **kwargs)
 
 
 def _rc(transparent: bool, perfil: str = PERFIL_POR_OMISION) -> dict:
     fondo = "none" if transparent else FONDO
     P = PERFILES[perfil]
     return {
-        "figure.facecolor": fondo, "figure.edgecolor": fondo,
+        "figure.facecolor": fondo,
+        "figure.edgecolor": fondo,
         "axes.facecolor": fondo,
-        "savefig.facecolor": fondo, "savefig.edgecolor": fondo,
+        "savefig.facecolor": fondo,
+        "savefig.edgecolor": fondo,
         "savefig.transparent": bool(transparent),
         # In card mode the legend sits on a card-colored plate with no border, so a
         # line running under it passes behind the text instead of through it.
-        "legend.frameon": not transparent, "legend.facecolor": fondo,
-        "legend.edgecolor": fondo, "legend.framealpha": 0.85,
-
-        "text.color": TINTA, "axes.titlecolor": TINTA, "axes.labelcolor": TEXTO,
-        "axes.edgecolor": SPINE, "axes.linewidth": 0.8,
-        "xtick.color": SPINE, "ytick.color": SPINE,
-        "xtick.labelcolor": NOTA, "ytick.labelcolor": NOTA,
-        "xtick.major.width": 0.8, "ytick.major.width": 0.8,
-        "xtick.major.size": 3.5, "ytick.major.size": 3.5,
-        "xtick.minor.width": 0.6, "ytick.minor.width": 0.6,
-
-        "axes.grid": True, "axes.axisbelow": True,
-        "grid.color": REJILLA, "grid.linewidth": 0.6, "grid.linestyle": "-",
+        "legend.frameon": not transparent,
+        "legend.facecolor": fondo,
+        "legend.edgecolor": fondo,
+        "legend.framealpha": 0.85,
+        "text.color": TINTA,
+        "axes.titlecolor": TINTA,
+        "axes.labelcolor": TEXTO,
+        "axes.edgecolor": SPINE,
+        "axes.linewidth": 0.8,
+        "xtick.color": SPINE,
+        "ytick.color": SPINE,
+        "xtick.labelcolor": NOTA,
+        "ytick.labelcolor": NOTA,
+        "xtick.major.width": 0.8,
+        "ytick.major.width": 0.8,
+        "xtick.major.size": 3.5,
+        "ytick.major.size": 3.5,
+        "xtick.minor.width": 0.6,
+        "ytick.minor.width": 0.6,
+        "axes.grid": True,
+        "axes.axisbelow": True,
+        "grid.color": REJILLA,
+        "grid.linewidth": 0.6,
+        "grid.linestyle": "-",
         "grid.alpha": 1.0,
-        "axes.spines.top": False, "axes.spines.right": False,
-
-        "font.size": P["font"], "axes.titlesize": P["titulo"], "axes.labelsize": P["font"],
-        "xtick.labelsize": P["tick"], "ytick.labelsize": P["tick"],
-        "legend.fontsize": P["nota"], "legend.title_fontsize": P["nota"],
-        "figure.titlesize": P["titulo"] + 1, "figure.titleweight": "bold",
-        "axes.titleweight": "bold", "axes.titlelocation": "left",
-        "axes.titlepad": P["titlepad"], "axes.labelpad": P["labelpad"],
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "font.size": P["font"],
+        "axes.titlesize": P["titulo"],
+        "axes.labelsize": P["font"],
+        "xtick.labelsize": P["tick"],
+        "ytick.labelsize": P["tick"],
+        "legend.fontsize": P["nota"],
+        "legend.title_fontsize": P["nota"],
+        "figure.titlesize": P["titulo"] + 1,
+        "figure.titleweight": "bold",
+        "axes.titleweight": "bold",
+        "axes.titlelocation": "left",
+        "axes.titlepad": P["titlepad"],
+        "axes.labelpad": P["labelpad"],
         # Pin DejaVu Sans, which ships inside matplotlib itself: Juno would
         # otherwise draw in Noto Sans, which lacks arrows and >=, <= (they come out
         # as boxes) and has other widths than the desktop the layout was checked on.
         "font.family": "sans-serif",
         "font.sans-serif": ["DejaVu Sans", "Noto Sans", "Helvetica", "Arial"],
         "mathtext.fontset": "dejavusans",
-
         "legend.labelcolor": TEXTO,
-        "legend.handlelength": 2.8, "legend.borderaxespad": 0.6,
-
-        "axes.prop_cycle": cycler(color=UNIVERSAL_COLORS) + cycler(linestyle=LINESTYLES),
-        "lines.linewidth": P["lw"], "lines.markersize": 5.5 * P["lw"] / 2.0,
-        "lines.solid_capstyle": "round", "lines.dash_capstyle": "butt",
-        "scatter.edgecolors": FONDO,          # a ring of card around each marker
-
+        "legend.handlelength": 2.8,
+        "legend.borderaxespad": 0.6,
+        "axes.prop_cycle": cycler(color=UNIVERSAL_COLORS)
+        + cycler(linestyle=LINESTYLES),
+        "lines.linewidth": P["lw"],
+        "lines.markersize": 5.5 * P["lw"] / 2.0,
+        "lines.solid_capstyle": "round",
+        "lines.dash_capstyle": "butt",
+        "scatter.edgecolors": FONDO,  # a ring of card around each marker
         # Arrows and unfilled patches take their edge from here; matplotlib's
         # default is black, which a graphite card would swallow.
-        "patch.edgecolor": NOTA, "patch.facecolor": NOTA,
-        "hatch.color": FONDO, "hatch.linewidth": 0.8,   # engraved: card-colored lines read on every fill
-
-        "boxplot.boxprops.color": TEXTO, "boxplot.whiskerprops.color": NOTA,
-        "boxplot.capprops.color": NOTA, "boxplot.medianprops.color": TINTA,
-        "boxplot.flierprops.color": NOTA, "boxplot.flierprops.markeredgecolor": NOTA,
+        "patch.edgecolor": NOTA,
+        "patch.facecolor": NOTA,
+        "hatch.color": FONDO,
+        "hatch.linewidth": 0.8,  # engraved: card-colored lines read on every fill
+        "boxplot.boxprops.color": TEXTO,
+        "boxplot.whiskerprops.color": NOTA,
+        "boxplot.capprops.color": NOTA,
+        "boxplot.medianprops.color": TINTA,
+        "boxplot.flierprops.color": NOTA,
+        "boxplot.flierprops.markeredgecolor": NOTA,
         "boxplot.flierprops.markerfacecolor": "none",
-        "boxplot.meanprops.color": TINTA, "boxplot.meanprops.markerfacecolor": TINTA,
+        "boxplot.meanprops.color": TINTA,
+        "boxplot.meanprops.markerfacecolor": TINTA,
         "boxplot.meanprops.markeredgecolor": TINTA,
-
         "image.cmap": "mav_seq",
         "errorbar.capsize": 0,
-
-        "figure.dpi": 150, "savefig.dpi": 200 if perfil == "cuaderno" else 300,
-        "savefig.bbox": "tight", "savefig.pad_inches": P["pad"],
+        "figure.dpi": 150,
+        "savefig.dpi": 200 if perfil == "cuaderno" else 300,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": P["pad"],
         "figure.figsize": P["figsize"],
         # Reproducible PDFs: no creation date, so a regenerated figure that did
         # not change keeps its hash (graphs/ is checked by sha256 like data_curso/).
@@ -545,8 +651,9 @@ def _rc(transparent: bool, perfil: str = PERFIL_POR_OMISION) -> dict:
     }
 
 
-def apply_style(theme: str | None = None, *, transparent: bool = False,
-                perfil: str | None = None) -> None:
+def apply_style(
+    theme: str | None = None, *, transparent: bool = False, perfil: str | None = None
+) -> None:
     """Set the course rcParams: the ``grafito`` card unless told otherwise.
 
     Parameters
@@ -563,11 +670,11 @@ def apply_style(theme: str | None = None, *, transparent: bool = False,
         size with 8.5 pt type, for figures that go into the decks.
     """
     global PERFIL
-    if isinstance(theme, bool):          # the old signature: apply_style(transparent)
+    if isinstance(theme, bool):  # the old signature: apply_style(transparent)
         theme, transparent = None, theme
     try:
         repair_ft2font_enums()
-    except Exception:      # a repair that misfires must not cost the style
+    except Exception:  # a repair that misfires must not cost the style
         pass
 
     enable_inline_backend()
@@ -593,7 +700,11 @@ def palette(n: int, universal: bool = True) -> list[str]:
     if n <= 0:
         return []
     if not universal:
-        return list(GRAYS[:n]) if n <= len(GRAYS) else [tono(t) for t in np.linspace(1.0, 0.30, n)]
+        return (
+            list(GRAYS[:n])
+            if n <= len(GRAYS)
+            else [tono(t) for t in np.linspace(1.0, 0.30, n)]
+        )
     if n == 1:
         return [tono(1.0)]
     floor = 0.44 if n <= 5 else 0.30
@@ -619,8 +730,19 @@ def get_series_cycler(with_markers: bool = False):
     return cycler(color=UNIVERSAL_COLORS) + cycler(linestyle=LINESTYLES)
 
 
-def sombrear_recesion(ax=None, x0=None, x1=None, *, facecolor=None, alpha=None,
-                      edgecolor="none", lw=0.0, linestyle="-", zorder=0, **kwargs):
+def sombrear_recesion(
+    ax=None,
+    x0=None,
+    x1=None,
+    *,
+    facecolor=None,
+    alpha=None,
+    edgecolor="none",
+    lw=0.0,
+    linestyle="-",
+    zorder=0,
+    **kwargs,
+):
     """Shade the span [x0, x1] as an episode: ink at ``RECESION_ALPHA``."""
     if ax is None:
         return None
@@ -630,10 +752,17 @@ def sombrear_recesion(ax=None, x0=None, x1=None, *, facecolor=None, alpha=None,
         x1 = kwargs.pop("xmax")
     if x0 is None or x1 is None:
         return None
-    return ax.axvspan(x0, x1, facecolor=RECESION_HEX if facecolor is None else facecolor,
-                      alpha=RECESION_ALPHA if alpha is None else alpha,
-                      edgecolor=edgecolor, linewidth=lw, linestyle=linestyle,
-                      zorder=zorder, **kwargs)
+    return ax.axvspan(
+        x0,
+        x1,
+        facecolor=RECESION_HEX if facecolor is None else facecolor,
+        alpha=RECESION_ALPHA if alpha is None else alpha,
+        edgecolor=edgecolor,
+        linewidth=lw,
+        linestyle=linestyle,
+        zorder=zorder,
+        **kwargs,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -641,6 +770,7 @@ def sombrear_recesion(ax=None, x0=None, x1=None, *, facecolor=None, alpha=None,
 # ---------------------------------------------------------------------------
 def _lineas_etiquetadas(ax, artistas=None):
     from matplotlib.lines import Line2D
+
     if artistas is None:
         artistas = ax.get_lines()
     out = []
@@ -678,10 +808,19 @@ def _color_legible(color) -> str:
     return tono(max(float(t), _F_NOTA))
 
 
-def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
-              fontsize=None, halo: bool = True, sep: float = 1.15,
-              nombres: dict | None = None, quitar_leyenda: bool = True,
-              fuera: bool | None = None):
+def etiquetar(
+    ax=None,
+    *,
+    artistas=None,
+    donde="auto",
+    dx: float = 5.0,
+    fontsize=None,
+    halo: bool = True,
+    sep: float = 1.15,
+    nombres: dict | None = None,
+    quitar_leyenda: bool = True,
+    fuera: bool | None = None,
+):
     """Label each line next to itself and drop the legend.
 
     ``donde``: ``"fin"`` puts the label after the last point (outside the axes
@@ -694,6 +833,7 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
     in line heights.  Call it last, after the limits are set.
     """
     from matplotlib import patheffects
+
     ax = ax or plt.gca()
     lineas = _lineas_etiquetadas(ax, artistas)
     if not lineas:
@@ -701,11 +841,11 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
     if quitar_leyenda and ax.get_legend() is not None:
         ax.get_legend().remove()
     fig = ax.figure
-    fig.canvas.draw()                        # limits and transforms are final now
+    fig.canvas.draw()  # limits and transforms are final now
     if fontsize is None:
         fontsize = plt.rcParams["legend.fontsize"]
     fontsize = mpl.font_manager.FontProperties(size=fontsize).get_size_in_points()
-    px = fontsize * fig.dpi / 72.0           # one line height in display pixels
+    px = fontsize * fig.dpi / 72.0  # one line height in display pixels
     if fuera is None:
         try:
             fuera = ax.get_subplotspec().is_last_col()
@@ -716,7 +856,7 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
     tr = ax.transData
 
     # candidate positions per line
-    puestos = []                             # (line, x_data, y_data, ha, va, dx_pts)
+    puestos = []  # (line, x_data, y_data, ha, va, dx_pts)
     for a, x, y in lineas:
         xn = _a_num(ax, x)
         ok = np.isfinite(xn) & np.isfinite(y)
@@ -739,7 +879,8 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
             for b, xb, yb in lineas:
                 if b is a:
                     continue
-                xbn = _a_num(ax, xb); okb = np.isfinite(xbn) & np.isfinite(yb)
+                xbn = _a_num(ax, xb)
+                okb = np.isfinite(xbn) & np.isfinite(yb)
                 if okb.any():
                     otras.append((xbn[okb], yb[okb]))
             for k, xc in enumerate(cand):
@@ -756,7 +897,8 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
                     else:
                         dist_dn = min(dist_dn, -d)
                 # room to the edges of the axes too
-                _, top_px = tr.transform((xc, y1)); _, bot_px = tr.transform((xc, y0))
+                _, top_px = tr.transform((xc, y1))
+                _, bot_px = tr.transform((xc, y0))
                 dist_up = min(dist_up, top_px - yc_px)
                 dist_dn = min(dist_dn, yc_px - bot_px)
                 side = 1 if dist_up >= dist_dn else -1
@@ -764,9 +906,10 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
                 if score > best_score:
                     best, best_score, best_side = k, score, side
             xd, yd = cand[best], yc[best]
-            puestos.append((a, xd, yd, "center", "bottom" if best_side > 0 else "top",
-                            0.0))
-        else:                                # a number: x position in data units
+            puestos.append(
+                (a, xd, yd, "center", "bottom" if best_side > 0 else "top", 0.0)
+            )
+        else:  # a number: x position in data units
             xd = float(donde)
             yd = float(np.interp(xd, xn, yv))
             puestos.append((a, xd, yd, "center", "bottom", 0.0))
@@ -780,15 +923,19 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
     for _ in range(50):
         moved = False
         for i, j in zip(orden[:-1], orden[1:]):
-            same_col = abs(xs[i] - xs[j]) < 6.0 * px   # only neighbours in x collide
+            same_col = abs(xs[i] - xs[j]) < 6.0 * px  # only neighbours in x collide
             if same_col and ys[j] - ys[i] < minsep:
                 d = (minsep - (ys[j] - ys[i])) / 2.0
-                ys[i] -= d; ys[j] += d; moved = True
+                ys[i] -= d
+                ys[j] += d
+                moved = True
         if not moved:
             break
     inv = tr.inverted()
     textos = []
-    efectos = [patheffects.withStroke(linewidth=3.0, foreground=FONDO)] if halo else None
+    efectos = (
+        [patheffects.withStroke(linewidth=3.0, foreground=FONDO)] if halo else None
+    )
     for k, (a, xd, yd, ha, va, ddx) in enumerate(puestos):
         xk, yk = inv.transform((xs[k], ys[k]))
         lab = str(a.get_label())
@@ -799,30 +946,53 @@ def etiquetar(ax=None, *, artistas=None, donde="auto", dx: float = 5.0,
             dy = 2.0
         elif va == "top":
             dy = -2.0
-        t = ax.annotate(lab, xy=(xk, yk), xytext=(ddx, dy), textcoords="offset points",
-                        ha=ha, va=va, fontsize=fontsize, color=_color_legible(a.get_color()),
-                        annotation_clip=False, zorder=a.get_zorder() + 0.5)
+        t = ax.annotate(
+            lab,
+            xy=(xk, yk),
+            xytext=(ddx, dy),
+            textcoords="offset points",
+            ha=ha,
+            va=va,
+            fontsize=fontsize,
+            color=_color_legible(a.get_color()),
+            annotation_clip=False,
+            zorder=a.get_zorder() + 0.5,
+        )
         if efectos and not (fuera and ha == "left"):
             t.set_path_effects(efectos)
         textos.append(t)
     return textos
 
 
-def etiquetar_barras(ax=None, *, fmt: str = "{:.1f}", fontsize=None, dentro: bool = False,
-                     contenedores=None, color=None, pad: float = 2.0):
+def etiquetar_barras(
+    ax=None,
+    *,
+    fmt: str = "{:.1f}",
+    fontsize=None,
+    dentro: bool = False,
+    contenedores=None,
+    color=None,
+    pad: float = 2.0,
+):
     """Write each bar's value at its end (or inside it, in card color)."""
     ax = ax or plt.gca()
     if fontsize is None:
         fontsize = plt.rcParams["xtick.labelsize"]
     out = []
-    for cont in (contenedores or ax.containers):
+    for cont in contenedores or ax.containers:
         try:
             labels = [fmt.format(v) if np.isfinite(v) else "" for v in cont.datavalues]
         except AttributeError:
             continue
         col = FONDO if dentro else (color or TEXTO)
-        out += ax.bar_label(cont, labels=labels, fontsize=fontsize, color=col,
-                            label_type="center" if dentro else "edge", padding=pad)
+        out += ax.bar_label(
+            cont,
+            labels=labels,
+            fontsize=fontsize,
+            color=col,
+            label_type="center" if dentro else "edge",
+            padding=pad,
+        )
     return out
 
 
@@ -834,8 +1004,15 @@ def _carpeta_exportacion(carpeta=None):
     return Path(carpeta) if carpeta else None
 
 
-def exportar(fig, nombre: str, *, tamano=None, carpeta=None, titulo: bool = True,
-             png: bool = True) -> Path | None:
+def exportar(
+    fig,
+    nombre: str,
+    *,
+    tamano=None,
+    carpeta=None,
+    titulo: bool = True,
+    png: bool = True,
+) -> Path | None:
     """Save *fig* as ``<carpeta>/<nombre>.pdf`` (and a PNG preview).
 
     Does nothing unless *carpeta* or ``$MAV_EXPORTAR_FIGURAS`` names a folder,
@@ -865,9 +1042,13 @@ def exportar(fig, nombre: str, *, tamano=None, carpeta=None, titulo: bool = True
     nombre = nombre[:-4] if nombre.endswith(".pdf") else nombre
     out = carpeta / f"{nombre}.pdf"
     fig.savefig(out, bbox_inches="tight", metadata={"CreationDate": None})
-    if png:   # same bbox as the PDF, so the preview is what the deck will show
-        fig.savefig(carpeta / f"{nombre}.png", bbox_inches="tight",
-                    pad_inches=plt.rcParams["savefig.pad_inches"], dpi=200)
+    if png:  # same bbox as the PDF, so the preview is what the deck will show
+        fig.savefig(
+            carpeta / f"{nombre}.png",
+            bbox_inches="tight",
+            pad_inches=plt.rcParams["savefig.pad_inches"],
+            dpi=200,
+        )
     return out
 
 
@@ -889,7 +1070,7 @@ def hex_to_rgb(hex_code: str) -> np.ndarray:
     h = hex_code.strip().lstrip("#")
     if len(h) == 3:
         h = "".join(c * 2 for c in h)
-    return np.array([int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)], dtype=float)
+    return np.array([int(h[i : i + 2], 16) / 255.0 for i in (0, 2, 4)], dtype=float)
 
 
 def srgb_to_linear(rgb) -> np.ndarray:
@@ -918,16 +1099,24 @@ def contrast_ratio(c1, c2) -> float:
 
 def is_dual_compliant(color, min_cr: float = 3.0) -> bool:
     """True if *color* reaches *min_cr* against both #000000 and #FFFFFF."""
-    return (contrast_ratio(color, "#000000") >= min_cr
-            and contrast_ratio(color, "#FFFFFF") >= min_cr)
+    return (
+        contrast_ratio(color, "#000000") >= min_cr
+        and contrast_ratio(color, "#FFFFFF") >= min_cr
+    )
 
 
 universal_palette = palette
 universal_styles = styles
-COLOR_NAMES = ["ink", "light gray", "mid gray", "pale (dotted)", "gray (long dash)",
-               "light gray (dash-dot-dot)"]
+COLOR_NAMES = [
+    "ink",
+    "light gray",
+    "mid gray",
+    "pale (dotted)",
+    "gray (long dash)",
+    "light gray (dash-dot-dot)",
+]
 
-try:                                   # the simulator lives with the slide style
+try:  # the simulator lives with the slide style
     from mav_plot_style import CVDSimulator
 except Exception:
     try:
@@ -936,6 +1125,7 @@ except Exception:
             sys.path.append(_root)
         from mav_plot_style import CVDSimulator
     except Exception:
+
         class CVDSimulator:
             """Placeholder: the simulator needs ``mav_plot_style.py``."""
 

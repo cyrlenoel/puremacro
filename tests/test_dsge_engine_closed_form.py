@@ -14,6 +14,7 @@ The anchor is Brock-Mirman (full depreciation, log utility), whose policy
 three ways (levels with ``z(+1)`` in the Euler equation, levels with
 ``E_t z(+1)`` substituted analytically, and logs).
 """
+
 from __future__ import annotations
 
 import io
@@ -144,7 +145,12 @@ EXPECTED_GHU_LEVELS = pd.Series([C_SS, K_SS, 1.0], index=["c", "k", "z"])
 # 1. First-order closed forms (finding C18 / C19)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("mod_text", [BM_LEVELS, BM_LEVELS_NOLEAD], ids=["z(+1) in Euler", "E_t z(+1) substituted"])
+
+@pytest.mark.parametrize(
+    "mod_text",
+    [BM_LEVELS, BM_LEVELS_NOLEAD],
+    ids=["z(+1) in Euler", "E_t z(+1) substituted"],
+)
 def test_brock_mirman_levels_first_order_matches_closed_form(mod_text):
     """ghx/ghu equal the closed form whether or not the state z appears with a lead.
 
@@ -154,8 +160,12 @@ def test_brock_mirman_levels_first_order_matches_closed_form(mod_text):
     m = load_mod(mod_text)
     assert m.timing == "dynare"
     dr = m.decision_rules()
-    pd.testing.assert_frame_equal(dr.ghx[["k", "z"]], EXPECTED_GHX_LEVELS, atol=1e-10, check_names=False)
-    pd.testing.assert_series_equal(dr.ghu["eps"], EXPECTED_GHU_LEVELS, atol=1e-10, check_names=False)
+    pd.testing.assert_frame_equal(
+        dr.ghx[["k", "z"]], EXPECTED_GHX_LEVELS, atol=1e-10, check_names=False
+    )
+    pd.testing.assert_series_equal(
+        dr.ghu["eps"], EXPECTED_GHU_LEVELS, atol=1e-10, check_names=False
+    )
     assert m.units == {"c": "level", "k": "level", "z": "level"}
 
 
@@ -163,8 +173,12 @@ def test_brock_mirman_logs_first_order_matches_closed_form():
     """In logs the exact policy is lk = log(alpha*beta) + z + alpha*lk(-1)."""
     m = load_mod(BM_LOGS)
     dr = m.decision_rules()
-    exp_ghx = pd.DataFrame({"lk": [ALPHA, ALPHA, 0.0], "z": [RHO, RHO, RHO]}, index=["lc", "lk", "z"])
-    pd.testing.assert_frame_equal(dr.ghx[["lk", "z"]], exp_ghx, atol=1e-10, check_names=False)
+    exp_ghx = pd.DataFrame(
+        {"lk": [ALPHA, ALPHA, 0.0], "z": [RHO, RHO, RHO]}, index=["lc", "lk", "z"]
+    )
+    pd.testing.assert_frame_equal(
+        dr.ghx[["lk", "z"]], exp_ghx, atol=1e-10, check_names=False
+    )
     np.testing.assert_allclose(dr.ghu["eps"].to_numpy(), [1.0, 1.0, 1.0], atol=1e-10)
 
 
@@ -172,8 +186,12 @@ def test_docs_rbc_with_lead_of_state_equals_analytic_substitution():
     """rbc.mod written with exp(a(+1)) and with exp(rho*a) give identical first-order rules."""
     ma = load_mod(RBC_DOCS)
     mb = load_mod(RBC_NOLEADSTATE)
-    pd.testing.assert_frame_equal(ma.decision_rules().ghx, mb.decision_rules().ghx, atol=1e-10)
-    pd.testing.assert_frame_equal(ma.decision_rules().ghu, mb.decision_rules().ghu, atol=1e-10)
+    pd.testing.assert_frame_equal(
+        ma.decision_rules().ghx, mb.decision_rules().ghx, atol=1e-10
+    )
+    pd.testing.assert_frame_equal(
+        ma.decision_rules().ghu, mb.decision_rules().ghu, atol=1e-10
+    )
 
 
 def test_solution_satisfies_the_lead_lag_equilibrium_conditions():
@@ -183,7 +201,10 @@ def test_solution_satisfies_the_lead_lag_equilibrium_conditions():
     F_full, L_full = dr.ghx.to_numpy(), dr.ghu.to_numpy()
     s_idx = [list(m.variables).index(s) for s in m.states]
     G, N = m.solution.G, m.solution.N
-    assert np.abs(m._A_plus @ F_full @ G + m._A_0 @ F_full + m._A_minus[:, s_idx]).max() < 1e-10
+    assert (
+        np.abs(m._A_plus @ F_full @ G + m._A_0 @ F_full + m._A_minus[:, s_idx]).max()
+        < 1e-10
+    )
     assert np.abs(m._A_plus @ F_full @ N + m._A_0 @ L_full + m._B_u).max() < 1e-10
     np.testing.assert_allclose(G, F_full[s_idx], atol=1e-12)
     np.testing.assert_allclose(N, L_full[s_idx], atol=1e-12)
@@ -192,6 +213,7 @@ def test_solution_satisfies_the_lead_lag_equilibrium_conditions():
 # ---------------------------------------------------------------------------
 # 2. IRF timing, simulation and theoretical moments (finding C19)
 # ---------------------------------------------------------------------------
+
 
 def test_irf_rows_are_aligned_in_dynare_time():
     """States and controls share a row: k_0 = k_ss and c_0 = c_ss for a unit eps.
@@ -210,12 +232,22 @@ def test_irf_rows_are_aligned_in_dynare_time():
 
 def test_build_klein_timing_is_unchanged():
     """build() keeps its documented convention: states are zero at h=0 and move at h=1."""
+
     def eqs(xp, x, e, p):
-        return [1 / x.c - p.beta * (p.alpha * xp.z * xp.k ** (p.alpha - 1)) / xp.c,
-                x.c + xp.k - x.z * x.k ** p.alpha,
-                xp.z - x.z ** p.rho * np.exp(e.eps)]
-    m = dsge.build(eqs, variables=["c", "k", "z"], states=["k", "z"], shocks=["eps"],
-                   params=dict(alpha=ALPHA, beta=BETA, rho=RHO), guess=dict(c=0.5, k=0.1, z=1.0))
+        return [
+            1 / x.c - p.beta * (p.alpha * xp.z * xp.k ** (p.alpha - 1)) / xp.c,
+            x.c + xp.k - x.z * x.k**p.alpha,
+            xp.z - x.z**p.rho * np.exp(e.eps),
+        ]
+
+    m = dsge.build(
+        eqs,
+        variables=["c", "k", "z"],
+        states=["k", "z"],
+        shocks=["eps"],
+        params=dict(alpha=ALPHA, beta=BETA, rho=RHO),
+        guess=dict(c=0.5, k=0.1, z=1.0),
+    )
     assert m.timing == "klein"
     irf = m.irf("eps", horizon=2)
     np.testing.assert_allclose(irf.loc[0].to_numpy(), [0.0, 0.0, 0.0], atol=1e-9)
@@ -235,6 +267,7 @@ def test_theoretical_moments_match_lyapunov_and_long_simulation():
     mom = m.theoretical_moments(sigma=0.01)
     G, F, N, L = m.solution.G, m.solution.F, m.solution.N, m.solution.L
     import scipy.linalg
+
     Sx = scipy.linalg.solve_discrete_lyapunov(G, N @ N.T * 1e-4)
     var_c = (F @ Sx @ F.T + L @ L.T * 1e-4)[0, 0]
     assert mom.moments.loc["c", "Std.Dev."] == pytest.approx(np.sqrt(var_c), rel=1e-10)
@@ -243,11 +276,17 @@ def test_theoretical_moments_match_lyapunov_and_long_simulation():
 
     sim = m.simulate(periods=200_000, sigma=0.01, seed=1, burn=500)
     for v in m.variables:
-        assert sim[v].std() == pytest.approx(mom.moments.loc[v, "Std.Dev."], rel=0.02), v
+        assert sim[v].std() == pytest.approx(
+            mom.moments.loc[v, "Std.Dev."], rel=0.02
+        ), v
     # cross-correlation in the same (Dynare) timing
-    assert sim[["c", "k"]].corr().iloc[0, 1] == pytest.approx(mom.correlation.loc["c", "k"], abs=0.01)
+    assert sim[["c", "k"]].corr().iloc[0, 1] == pytest.approx(
+        mom.correlation.loc["c", "k"], abs=0.01
+    )
     # lag-1 autocorrelation
-    assert sim["c"].autocorr(1) == pytest.approx(mom.autocorr.loc["c", "Lag 1"], abs=0.01)
+    assert sim["c"].autocorr(1) == pytest.approx(
+        mom.autocorr.loc["c", "Lag 1"], abs=0.01
+    )
 
 
 def test_theoretical_moments_closed_form_brock_mirman():
@@ -258,7 +297,9 @@ def test_theoretical_moments_closed_form_brock_mirman():
     ratio = mom.moments.loc["c", "Std.Dev."] / mom.moments.loc["k", "Std.Dev."]
     assert ratio == pytest.approx(C_SS / K_SS, rel=1e-10)
     # z is an AR(1): Var = sigma^2 / (1 - rho^2)
-    assert mom.moments.loc["z", "Variance"] == pytest.approx(1e-4 / (1 - RHO**2), rel=1e-10)
+    assert mom.moments.loc["z", "Variance"] == pytest.approx(
+        1e-4 / (1 - RHO**2), rel=1e-10
+    )
 
 
 def test_build_theoretical_moments_have_no_state_shock_cross_term():
@@ -266,22 +307,34 @@ def test_build_theoretical_moments_have_no_state_shock_cross_term():
     NK = dict(beta=0.99, sigma=1.0, kappa=0.1275, phi_pi=1.5, phi_x=0.125, rho_r=0.9)
 
     def nk(xp, x, e, p):
-        return [xp.rn - p.rho_r * x.rn - e.eps_demand,
-                xp.x - x.x - (x.i - xp.pi - x.rn) / p.sigma,
-                p.beta * xp.pi + p.kappa * x.x - x.pi,
-                p.phi_pi * x.pi + p.phi_x * x.x + e.eps_policy - x.i]
+        return [
+            xp.rn - p.rho_r * x.rn - e.eps_demand,
+            xp.x - x.x - (x.i - xp.pi - x.rn) / p.sigma,
+            p.beta * xp.pi + p.kappa * x.x - x.pi,
+            p.phi_pi * x.pi + p.phi_x * x.x + e.eps_policy - x.i,
+        ]
 
-    m = dsge.build(nk, variables=["rn", "x", "pi", "i"], states=["rn"], shocks=["eps_demand", "eps_policy"],
-                   params=NK, steady_state={k: 0.0 for k in ("rn", "x", "pi", "i")}, linearize="level")
+    m = dsge.build(
+        nk,
+        variables=["rn", "x", "pi", "i"],
+        states=["rn"],
+        shocks=["eps_demand", "eps_policy"],
+        params=NK,
+        steady_state={k: 0.0 for k in ("rn", "x", "pi", "i")},
+        linearize="level",
+    )
     mom = m.theoretical_moments()
     sim = m.simulate(periods=200_000, seed=3, burn=200)
     for v in m.variables:
-        assert sim[v].std() == pytest.approx(mom.moments.loc[v, "Std.Dev."], rel=0.02), v
+        assert sim[v].std() == pytest.approx(
+            mom.moments.loc[v, "Std.Dev."], rel=0.02
+        ), v
 
 
 # ---------------------------------------------------------------------------
 # 3. Second order (finding C20)
 # ---------------------------------------------------------------------------
+
 
 def test_second_order_brock_mirman_levels_closed_form():
     """ghxx, ghxu, ghuu, ghs2 of the exactly-solvable model in levels."""
@@ -297,10 +350,14 @@ def test_second_order_brock_mirman_levels_closed_form():
     assert d.ghuu.loc["k", "eps_eps"] == pytest.approx(0.0, abs=1e-7)
     assert d.ghs2["k"] == pytest.approx(0.0, abs=1e-7)
     assert d.ghs2["c"] == pytest.approx(0.0, abs=1e-7)
-    assert d.ghxx.loc["c", "k_k"] == pytest.approx(ALPHA * (ALPHA - 1) * C_SS / K_SS**2, abs=1e-7)
+    assert d.ghxx.loc["c", "k_k"] == pytest.approx(
+        ALPHA * (ALPHA - 1) * C_SS / K_SS**2, abs=1e-7
+    )
     assert d.ghxu.loc["c", "k_eps"] == pytest.approx(ALPHA * C_SS / K_SS, abs=1e-7)
     # first-order block unchanged by the second-order solve
-    pd.testing.assert_frame_equal(d.ghx[["k", "z"]], EXPECTED_GHX_LEVELS, atol=1e-10, check_names=False)
+    pd.testing.assert_frame_equal(
+        d.ghx[["k", "z"]], EXPECTED_GHX_LEVELS, atol=1e-10, check_names=False
+    )
 
 
 def test_second_order_brock_mirman_logs_has_no_curvature():
@@ -320,8 +377,15 @@ def test_second_order_risk_correction_closed_form():
     def eqs(lead, curr, lag, sh, p):
         return [curr.p - p.beta * np.exp(lead.z), curr.z - p.rho * lag.z - sh.u]
 
-    sol = build_dynare(eqs, variables=["p", "z"], shocks=["u"], params=dict(beta=beta, rho=rho),
-                       steady_state=dict(p=beta, z=0.0), order=2, shock_cov=np.array([[s**2]]))
+    sol = build_dynare(
+        eqs,
+        variables=["p", "z"],
+        shocks=["u"],
+        params=dict(beta=beta, rho=rho),
+        steady_state=dict(p=beta, z=0.0),
+        order=2,
+        shock_cov=np.array([[s**2]]),
+    )
     d = sol.oo_dr
     assert d.ghx.loc["p", "z"] == pytest.approx(beta * rho**2, rel=1e-9)
     assert d.ghu.loc["p", "u"] == pytest.approx(beta * rho, rel=1e-9)
@@ -333,9 +397,14 @@ def test_second_order_risk_correction_closed_form():
 
 
 def _rbc_levels(lead, curr, lag, sh, p):
-    return [curr.c**-1 - p.beta * lead.c**-1 * (p.alpha * np.exp(lead.a) * curr.k**(p.alpha - 1) + 1 - p.delta),
-            curr.k - (np.exp(curr.a) * lag.k**p.alpha - curr.c + (1 - p.delta) * lag.k),
-            curr.a - (p.rho * lag.a + sh.eps)]
+    return [
+        curr.c**-1
+        - p.beta
+        * lead.c**-1
+        * (p.alpha * np.exp(lead.a) * curr.k ** (p.alpha - 1) + 1 - p.delta),
+        curr.k - (np.exp(curr.a) * lag.k**p.alpha - curr.c + (1 - p.delta) * lag.k),
+        curr.a - (p.rho * lag.a + sh.eps),
+    ]
 
 
 def test_second_order_rule_satisfies_euler_equation_in_expectation():
@@ -349,14 +418,22 @@ def test_second_order_rule_satisfies_euler_equation_in_expectation():
     c_ss = k_ss**alpha - delta * k_ss
     params = dict(alpha=alpha, beta=beta, delta=delta, rho=rho)
     from puremacro.dsge.build import _Vec
+
     nodes, weights = np.polynomial.hermite_e.hermegauss(15)
     weights = weights / weights.sum()
     par = _Vec(list(params), list(params.values()), what="parameter")
     V = ["k", "a", "c"]
 
     def expected_residual(s: float) -> float:
-        sol = build_dynare(_rbc_levels, variables=V, shocks=["eps"], params=params,
-                           steady_state=dict(k=k_ss, a=0.0, c=c_ss), order=2, shock_cov=np.array([[s**2]]))
+        sol = build_dynare(
+            _rbc_levels,
+            variables=V,
+            shocks=["eps"],
+            params=params,
+            steady_state=dict(k=k_ss, a=0.0, c=c_ss),
+            order=2,
+            shock_cov=np.array([[s**2]]),
+        )
         ss = sol.steady_state.loc[V].to_numpy()
         y_t = ss + 0.5 * sol.ghs2
         x_next = (y_t - ss)[[0, 1]]  # states k, a
@@ -364,9 +441,24 @@ def test_second_order_rule_satisfies_euler_equation_in_expectation():
         res = np.zeros(3)
         for node, w in zip(nodes, weights):
             u = np.array([s * node])
-            y_next = (ss + 0.5 * sol.ghs2 + sol.ghx @ x_next + sol.ghu @ u
-                      + 0.5 * sol.ghxx @ kron_xx + sol.ghxu @ np.kron(x_next, u) + 0.5 * sol.ghuu @ np.kron(u, u))
-            res += w * np.asarray(_rbc_levels(_Vec(V, y_next), _Vec(V, y_t), _Vec(V, ss), _Vec(["eps"], np.zeros(1)), par))
+            y_next = (
+                ss
+                + 0.5 * sol.ghs2
+                + sol.ghx @ x_next
+                + sol.ghu @ u
+                + 0.5 * sol.ghxx @ kron_xx
+                + sol.ghxu @ np.kron(x_next, u)
+                + 0.5 * sol.ghuu @ np.kron(u, u)
+            )
+            res += w * np.asarray(
+                _rbc_levels(
+                    _Vec(V, y_next),
+                    _Vec(V, y_t),
+                    _Vec(V, ss),
+                    _Vec(["eps"], np.zeros(1)),
+                    par,
+                )
+            )
         return float(np.abs(res).max())
 
     r1, r2 = expected_residual(0.05), expected_residual(0.025)
@@ -382,14 +474,36 @@ def test_second_order_levels_and_logs_agree_on_the_risk_correction():
     params = dict(alpha=alpha, beta=beta, delta=delta, rho=rho)
 
     def rbc_logs(lead, curr, lag, sh, p):
-        return [np.exp(-curr.c) - p.beta * np.exp(-lead.c) * (p.alpha * np.exp(lead.a) * np.exp((p.alpha - 1) * curr.k) + 1 - p.delta),
-                np.exp(curr.k) - (np.exp(curr.a) * np.exp(p.alpha * lag.k) - np.exp(curr.c) + (1 - p.delta) * np.exp(lag.k)),
-                curr.a - (p.rho * lag.a + sh.eps)]
+        return [
+            np.exp(-curr.c)
+            - p.beta
+            * np.exp(-lead.c)
+            * (p.alpha * np.exp(lead.a) * np.exp((p.alpha - 1) * curr.k) + 1 - p.delta),
+            np.exp(curr.k)
+            - (
+                np.exp(curr.a) * np.exp(p.alpha * lag.k)
+                - np.exp(curr.c)
+                + (1 - p.delta) * np.exp(lag.k)
+            ),
+            curr.a - (p.rho * lag.a + sh.eps),
+        ]
 
-    lev = build_dynare(_rbc_levels, variables=["k", "a", "c"], shocks=["eps"], params=params,
-                       steady_state=dict(k=k_ss, a=0.0, c=c_ss), order=2)
-    log = build_dynare(rbc_logs, variables=["k", "a", "c"], shocks=["eps"], params=params,
-                       steady_state=dict(k=np.log(k_ss), a=0.0, c=np.log(c_ss)), order=2)
+    lev = build_dynare(
+        _rbc_levels,
+        variables=["k", "a", "c"],
+        shocks=["eps"],
+        params=params,
+        steady_state=dict(k=k_ss, a=0.0, c=c_ss),
+        order=2,
+    )
+    log = build_dynare(
+        rbc_logs,
+        variables=["k", "a", "c"],
+        shocks=["eps"],
+        params=params,
+        steady_state=dict(k=np.log(k_ss), a=0.0, c=np.log(c_ss)),
+        order=2,
+    )
     assert lev.ghs2[0] == pytest.approx(log.ghs2[0] * k_ss, rel=1e-6)
     assert lev.ghs2[2] == pytest.approx(log.ghs2[2] * c_ss, rel=1e-6)
     assert lev.ghs2[0] + lev.ghs2[2] == pytest.approx(0.0, abs=1e-8)
@@ -408,6 +522,7 @@ def test_method_central_is_honoured_at_order_2():
 # 4. Pruned second-order objects are consistent with the first-order model
 # ---------------------------------------------------------------------------
 
+
 def test_pruned_first_order_component_reproduces_linear_model():
     """simulate() and girf() of the pruned solution are in Dynare timing like the LinearModel."""
     m = load_mod(RBC_DOCS)
@@ -423,7 +538,9 @@ def test_pruned_first_order_component_reproduces_linear_model():
     for t in range(60):
         rows.append(M_x @ x + M_u @ eps[t])
         x = m.solution.G @ x + m.solution.N @ eps[t]
-    lin = pd.DataFrame(rows, columns=list(m.states) + list(m.controls))[list(m.variables)]
+    lin = pd.DataFrame(rows, columns=list(m.states) + list(m.controls))[
+        list(m.variables)
+    ]
     np.testing.assert_allclose(first.to_numpy(), lin.to_numpy(), atol=1e-12)
     # and the linear model's own simulate() with those innovations agrees
     # impact of a GIRF at h=0 coincides with the first-order IRF up to O(size^2)
@@ -431,7 +548,9 @@ def test_pruned_first_order_component_reproduces_linear_model():
     # not linear), so agreement is to first order in ``size`` only
     g = sol.girf("eps", size=1e-4, horizon=5, sigma=0.0)
     irf1 = m.irf("eps", horizon=5, size=1e-4)
-    np.testing.assert_allclose(g[list(m.variables)].to_numpy(), irf1.to_numpy(), rtol=1e-3, atol=1e-12)
+    np.testing.assert_allclose(
+        g[list(m.variables)].to_numpy(), irf1.to_numpy(), rtol=1e-3, atol=1e-12
+    )
 
 
 def test_pruned_theoretical_moments_agree_with_first_order_and_have_real_fevd():
@@ -450,7 +569,9 @@ def test_pruned_theoretical_moments_agree_with_first_order_and_have_real_fevd():
     # simulated moments (long) agree with the theoretical ones
     res = sol.stoch_simul(irf=0, periods=100_000, seed=2)
     for v in m.variables:
-        assert res.simulated_moments.loc[v, "Std.Dev."] == pytest.approx(mom2.moments.loc[v, "Std.Dev."], rel=0.05), v
+        assert res.simulated_moments.loc[v, "Std.Dev."] == pytest.approx(
+            mom2.moments.loc[v, "Std.Dev."], rel=0.05
+        ), v
 
 
 def test_brock_mirman_order2_irfs_equal_order1_irfs():
@@ -461,12 +582,15 @@ def test_brock_mirman_order2_irfs_equal_order1_irfs():
     r1 = m.stoch_simul(irf=6, sigma=0.01)
     r2 = m.stoch_simul(order=2, irf=6, sigma=0.01)
     for key in r1.irfs:
-        np.testing.assert_allclose(r2.irfs[key].to_numpy(), r1.irfs[key].to_numpy(), atol=1e-8)
+        np.testing.assert_allclose(
+            r2.irfs[key].to_numpy(), r1.irfs[key].to_numpy(), atol=1e-8
+        )
 
 
 # ---------------------------------------------------------------------------
 # 5. Blanchard-Kahn handling (findings M44 / C42)
 # ---------------------------------------------------------------------------
+
 
 def test_indeterminate_model_raises_blanchard_kahn_error():
     with pytest.raises(BlanchardKahnError, match="indeterminacy"):
@@ -481,7 +605,13 @@ def test_non_strict_model_refuses_to_pretend():
     assert isinstance(m, LinearModel)
     assert m.solution.eu != (1, 1)
     assert "Blanchard-Kahn" in m.summary()
-    for call in (m.decision_rules, m.irf, m.simulate, m.theoretical_moments, m.stoch_simul):
+    for call in (
+        m.decision_rules,
+        m.irf,
+        m.simulate,
+        m.theoretical_moments,
+        m.stoch_simul,
+    ):
         with pytest.raises(ModelError, match="unique stable solution"):
             call("eps_g") if call.__name__ == "irf" else call()
 
@@ -500,14 +630,18 @@ def test_cli_reports_true_bk_status(tmp_path, capsys):
 
     good = tmp_path / "rbc2.mod"
     good.write_text(RBC2, encoding="utf-8")
-    code = run_cli([str(good), "--irf", "5", "--fevd", "--outdir", str(tmp_path / "out_good")])
+    code = run_cli(
+        [str(good), "--irf", "5", "--fevd", "--outdir", str(tmp_path / "out_good")]
+    )
     captured = capsys.readouterr()
     assert code == 0
     assert "Blanchard-Kahn condition verified" in captured.out
     fevd = pd.read_csv(tmp_path / "out_good" / "fevd.csv")
     assert fevd["eps_a"].between(0, 1).all()
     # order-2 header is populated for the pruned solution
-    code = run_cli([str(good), "--order", "2", "--irf", "3", "--outdir", str(tmp_path / "out2")])
+    code = run_cli(
+        [str(good), "--order", "2", "--irf", "3", "--outdir", str(tmp_path / "out2")]
+    )
     captured = capsys.readouterr()
     assert code == 0
     assert "Endogenous  : 5" in captured.out
@@ -517,9 +651,14 @@ def test_cli_reports_true_bk_status(tmp_path, capsys):
 
 def test_compute_fevd_never_pads_zero_variance_rows():
     """A variable with zero forecast-error variance gets NaN shares and a warning, not 1/n_u."""
-    mod = RBC2.replace("var c k a g y;", "var c k a g y klag;").replace(
-        "  g = (1-rho_g)*gbar + rho_g*g(-1) + eps_g;", "  g = (1-rho_g)*gbar + rho_g*g(-1) + eps_g;\n  klag = k(-1);"
-    ).replace("initval; k = 20;", "initval; klag = 20; k = 20;")
+    mod = (
+        RBC2.replace("var c k a g y;", "var c k a g y klag;")
+        .replace(
+            "  g = (1-rho_g)*gbar + rho_g*g(-1) + eps_g;",
+            "  g = (1-rho_g)*gbar + rho_g*g(-1) + eps_g;\n  klag = k(-1);",
+        )
+        .replace("initval; k = 20;", "initval; klag = 20; k = 20;")
+    )
     m = load_mod(mod)
     with pytest.warns(ZeroVarianceWarning, match="klag@h=1"):
         res = compute_fevd(m, horizons=[1, 2, None])
@@ -533,6 +672,7 @@ def test_compute_fevd_never_pads_zero_variance_rows():
 # ---------------------------------------------------------------------------
 # 6. Smets-Wouters reference model (findings C42 / C43)
 # ---------------------------------------------------------------------------
+
 
 def _sw07_path() -> Path:
     return Path(puremacro.dsge.__file__).parent / "_references" / "sw07_pfeifer.mod"
@@ -569,20 +709,29 @@ def test_sw07_mod_resolves_from_the_package_and_importlib_resources():
 # 7. The shocks block flows everywhere (findings M43 / M47 / M66)
 # ---------------------------------------------------------------------------
 
+
 def test_shocks_block_is_the_default_covariance_everywhere():
     m = load_mod(RBC_DOCS)
     np.testing.assert_allclose(m._shock_cov, [[1e-4]])
     mom = m.theoretical_moments()
-    assert mom.moments.loc["a", "Std.Dev."] == pytest.approx(0.01 / np.sqrt(1 - 0.8**2), rel=1e-10)
+    assert mom.moments.loc["a", "Std.Dev."] == pytest.approx(
+        0.01 / np.sqrt(1 - 0.8**2), rel=1e-10
+    )
     res = m.stoch_simul(irf=5, periods=2000, seed=0)
     assert res.irfs["a_eps"].iloc[0] == pytest.approx(0.01)
     assert res.irfs["a_eps"].iloc[1] == pytest.approx(0.008)
-    assert res.simulated_moments.loc["a", "Std.Dev."] == pytest.approx(0.01 / 0.6, rel=0.1)
-    assert res.theoretical_moments.moments.loc["a", "Std.Dev."] == pytest.approx(0.01 / 0.6, rel=1e-10)
+    assert res.simulated_moments.loc["a", "Std.Dev."] == pytest.approx(
+        0.01 / 0.6, rel=0.1
+    )
+    assert res.theoretical_moments.moments.loc["a", "Std.Dev."] == pytest.approx(
+        0.01 / 0.6, rel=1e-10
+    )
     sim = m.simulate(periods=20000, seed=1)
     assert sim["a"].std() == pytest.approx(0.01 / 0.6, rel=0.05)
     # explicit sigma still overrides
-    assert m.theoretical_moments(sigma=1.0).moments.loc["a", "Std.Dev."] == pytest.approx(1 / 0.6, rel=1e-10)
+    assert m.theoretical_moments(sigma=1.0).moments.loc[
+        "a", "Std.Dev."
+    ] == pytest.approx(1 / 0.6, rel=1e-10)
     # and the second-order solve inherits the covariance
     sol = m.solve(order=2)
     np.testing.assert_allclose(sol.shock_cov, [[1e-4]])
@@ -617,25 +766,60 @@ def test_linear_model_solve_api():
 # 8. Derivative verification, parser idioms, path handling (M45, M48, M94)
 # ---------------------------------------------------------------------------
 
+
 def test_verify_derivatives_catches_non_analytic_equations():
     def rbc_abs(lead, curr, lag, sh, p):
-        return [curr.c**-1 - p.beta * lead.c**-1 * (p.alpha * np.exp(lead.a) * curr.k**(p.alpha - 1) + 1 - p.delta),
-                curr.k - (np.exp(curr.a) * np.abs(lag.k)**p.alpha - curr.c + (1 - p.delta) * lag.k),
-                curr.a - (p.rho * lag.a + sh.eps)]
+        return [
+            curr.c**-1
+            - p.beta
+            * lead.c**-1
+            * (p.alpha * np.exp(lead.a) * curr.k ** (p.alpha - 1) + 1 - p.delta),
+            curr.k
+            - (
+                np.exp(curr.a) * np.abs(lag.k) ** p.alpha
+                - curr.c
+                + (1 - p.delta) * lag.k
+            ),
+            curr.a - (p.rho * lag.a + sh.eps),
+        ]
 
     P = dict(alpha=0.3, beta=0.99, delta=0.025, rho=0.8)
     with pytest.raises(ModelError, match="not analytic"):
-        build_dynare(rbc_abs, variables=["c", "k", "a"], shocks=["eps"], params=P, guess=dict(c=2, k=38, a=0))
-    m = build_dynare(rbc_abs, variables=["c", "k", "a"], shocks=["eps"], params=P,
-                     guess=dict(c=2, k=38, a=0), method="central")
+        build_dynare(
+            rbc_abs,
+            variables=["c", "k", "a"],
+            shocks=["eps"],
+            params=P,
+            guess=dict(c=2, k=38, a=0),
+        )
+    m = build_dynare(
+        rbc_abs,
+        variables=["c", "k", "a"],
+        shocks=["eps"],
+        params=P,
+        guess=dict(c=2, k=38, a=0),
+        method="central",
+    )
     ref = load_mod(RBC_DOCS)
-    np.testing.assert_allclose(m.decision_rules().ghx.to_numpy(), ref.decision_rules().ghx.to_numpy(), rtol=1e-5)
+    np.testing.assert_allclose(
+        m.decision_rules().ghx.to_numpy(),
+        ref.decision_rules().ghx.to_numpy(),
+        rtol=1e-5,
+    )
 
 
 def test_parse_mod_keeps_stoch_simul_options_with_a_variable_list():
-    parsed = parse_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
-    assert parsed["options"] == {"order": 2, "irf": 15}
-    sol = load_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
+    parsed = parse_mod(
+        RBC_DOCS.replace(
+            "stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"
+        )
+    )
+    assert parsed["options"] == {"order": 2, "irf": 15, "var_list": ["c", "k"]}
+    sol = load_mod(
+        RBC_DOCS.replace(
+            "stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"
+        )
+    )
     assert isinstance(sol, PrunedDSGESolution)
 
 
@@ -655,7 +839,9 @@ def test_parse_mod_evaluates_steady_state_model_temporaries():
 
 
 def test_load_mod_raises_file_not_found_for_missing_paths():
-    with pytest.raises(FileNotFoundError, match=r"exist\.mod"):  # separator-agnostic: Windows renders the path with backslashes
+    with pytest.raises(
+        FileNotFoundError, match=r"exist\.mod"
+    ):  # separator-agnostic: Windows renders the path with backslashes
         load_mod(Path("does/not/exist.mod"))
     with pytest.raises(FileNotFoundError):
         load_mod("puremacro/dsge/_references/no_such_model.mod")
