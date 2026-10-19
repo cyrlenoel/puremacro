@@ -1,4 +1,5 @@
 """Bootstrap confidence bands for VAR-based IRFs."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -39,7 +40,8 @@ def _kilian_bias_correct(Y, p, n_pilot=100, rng=None):
     Y_pilot = np.empty((n_pilot, T, n))
     Y_pilot[:, :p, :] = Y_arr[:p]
     for t in range(p, T):
-        lags = np.concatenate([Y_pilot[:, t - 1 - l, :] for l in range(p)], axis=1)
+        # ⚡ Bolt: Vectorize lag gathering inplace to prevent reallocation
+        lags = Y_pilot[:, t - p : t, :][:, ::-1, :].reshape(n_pilot, p * n)
         Y_pilot[:, t, :] = lags @ A_stack.T + intercept + U[:, t - p, :]
     for b in range(n_pilot):
         try:
@@ -54,6 +56,7 @@ def _kilian_bias_correct(Y, p, n_pilot=100, rng=None):
     # Stability shrinkage (Kilian 1998 sec. 3): if companion eigenvalues
     # exceed 1, shrink the bias correction toward zero by delta in (0,1].
     from .estimate import companion
+
     delta = 1.0
     while delta > 0.0:
         Cc = companion(A_bc)
@@ -66,9 +69,21 @@ def _kilian_bias_correct(Y, p, n_pilot=100, rng=None):
     return A_bc, int_bc
 
 
-def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
-                    method="recursive", rng=None, bias_correct=False,
-                    n_pilot=100, band="pointwise", n_jobs: int = 1, **id_kwargs):
+def bootstrap_bands(
+    Y,
+    p,
+    identify_fn,
+    horizon,
+    n_boot=500,
+    alpha=0.10,
+    method="recursive",
+    rng=None,
+    bias_correct=False,
+    n_pilot=100,
+    band="pointwise",
+    n_jobs: int = 1,
+    **id_kwargs,
+):
     """Bootstrap IRF percentile bands.
 
     method: 'recursive' (residual recursive bootstrap; Kilian-Lutkepohl S12),
@@ -123,7 +138,7 @@ def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
     Y_arr = np.asarray(Y)
     T, n = Y_arr.shape
     irfs = np.zeros((n_boot, horizon + 1, n, n))
-    A_stack = np.hstack(A_list)          # (n, n*p), lags newest-first
+    A_stack = np.hstack(A_list)  # (n, n*p), lags newest-first
 
     # Pre-generate bootstrap innovations (vectorized across draws)
     n_res = len(residuals)
@@ -139,7 +154,7 @@ def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
         U = np.empty((n_boot, n_res, n))
         for b in range(n_boot):
             starts = rng.integers(0, n_res - block + 1, size=n_blocks)
-            U[b] = np.concatenate([residuals[s:s + block] for s in starts])[:n_res]
+            U[b] = np.concatenate([residuals[s : s + block] for s in starts])[:n_res]
     else:
         raise ValueError(f"unknown method {method!r}")
 
@@ -147,7 +162,8 @@ def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
     Y_all = np.empty((n_boot, T, n))
     Y_all[:, :p, :] = Y_arr[:p]
     for t in range(p, T):
-        lags = np.concatenate([Y_all[:, t - 1 - l, :] for l in range(p)], axis=1)
+        # ⚡ Bolt: Vectorize lag gathering inplace to prevent reallocation
+        lags = Y_all[:, t - p : t, :][:, ::-1, :].reshape(n_boot, p * n)
         Y_all[:, t, :] = lags @ A_stack.T + intercept + U[:, t - p, :]
 
     def _eval_draw(b: int) -> np.ndarray:
@@ -187,7 +203,7 @@ def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
     crit = np.full((n, n), np.nan)
     for i in range(n):
         for j in range(n):
-            d = good[:, :, i, j]                      # (n_good, horizon+1)
+            d = good[:, :, i, j]  # (n_good, horizon+1)
             # Degenerate horizons (e.g. Cholesky impact restrictions hold in
             # EVERY draw) collapse to the point instead of studentizing 0/0;
             # relative threshold matches supt_band's degeneracy check.
@@ -196,11 +212,20 @@ def bootstrap_bands(Y, p, identify_fn, horizon, n_boot=500, alpha=0.10,
             lower[:, i, j] = point[:, i, j]
             upper[:, i, j] = point[:, i, j]
             if active.any():
-                res = supt_band(theta=point[active, i, j],
-                                draws=d[:, active],
-                                method="bootstrap", alpha=alpha)
+                res = supt_band(
+                    theta=point[active, i, j],
+                    draws=d[:, active],
+                    method="bootstrap",
+                    alpha=alpha,
+                )
                 lower[active, i, j] = res.lower
                 upper[active, i, j] = res.upper
                 crit[i, j] = res.crit_value
-    return {"point": point, "lower": lower, "upper": upper, "draws": irfs,
-            "band": "sup-t", "crit_value": crit}
+    return {
+        "point": point,
+        "lower": lower,
+        "upper": upper,
+        "draws": irfs,
+        "band": "sup-t",
+        "crit_value": crit,
+    }
