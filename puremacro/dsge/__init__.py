@@ -69,8 +69,7 @@ from .dynare import (
     build_dynare, parse_mod, load_mod, load_dynare_mod, solve_dynare_2nd_order,
     _orig_stoch_simul, _linear_model_stoch_simul,
 )
-import functools as _functools
-LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul)
+# LinearModel.stoch_simul patch removed due to wrapper loop; original methods used instead.
 from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
 from .extended_path import extended_path
 from .stacked_newton import (
