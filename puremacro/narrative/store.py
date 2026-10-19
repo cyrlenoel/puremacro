@@ -22,12 +22,14 @@ flagged (``n_revisions``, ``revised_at``) and the hash of the text it replaced
 is kept in ``previous_content_hash``, so edited documents can be found with
 :meth:`CorpusStore.revised` without storing every version.
 """
+
 from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -91,11 +93,13 @@ def default_corpus_path() -> Path:
     and sandboxes that redirect the cache redirect the corpus too.
     """
     from .. import _cache_db
+
     return _cache_db.default_db_path().parent / "narrative_corpus.db"
 
 
 def _version() -> str:
     from .. import __version__
+
     return __version__
 
 
@@ -145,7 +149,7 @@ class CorpusStore:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "CorpusStore":
+    def __enter__(self) -> CorpusStore:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -160,7 +164,7 @@ class CorpusStore:
     # ── writes ─────────────────────────────────────────────────────────────
     def upsert(
         self,
-        docs: Iterable["NarrativeDocument"],
+        docs: Iterable[NarrativeDocument],
         *,
         fetched_at: int | None = None,
     ) -> dict[str, int]:
@@ -190,40 +194,99 @@ class CorpusStore:
         self._conn.commit()
         return counts
 
-    def _upsert_rows(self, cur, docs, ts: int, version: str, counts: dict[str, int]) -> None:
-        for d in docs:
-            h = d.content_hash
-            meta_json = dumps_metadata(d.metadata)
-            row = cur.execute(
-                "SELECT content_hash FROM documents WHERE doc_id = ?", (d.doc_id,)
-            ).fetchone()
-            if row is None:
+    def _upsert_rows(
+        self, cur, docs, ts: int, version: str, counts: dict[str, int]
+    ) -> None:
+        # ⚡ Bolt: Vectorize document upserts to batch queries instead of N+1 SELECT/UPDATE
+        from itertools import islice
+
+        iterator = iter(docs)
+        while True:
+            chunk = list(islice(iterator, 900))
+            if not chunk:
+                break
+
+            doc_ids = [d.doc_id for d in chunk]
+            placeholders = ",".join("?" * len(doc_ids))
+            existing_hashes = dict(
                 cur.execute(
+                    f"SELECT doc_id, content_hash FROM documents WHERE doc_id IN ({placeholders})",
+                    doc_ids,
+                ).fetchall()
+            )
+
+            inserts = []
+            updates_unchanged = []
+            updates_changed = []
+
+            for d in chunk:
+                h = d.content_hash
+                meta_json = dumps_metadata(d.metadata)
+                existing_h = existing_hashes.get(d.doc_id)
+
+                if existing_h is None:
+                    inserts.append(
+                        (
+                            d.doc_id,
+                            d.source,
+                            d.country,
+                            d.date.isoformat(),
+                            d.url,
+                            d.title,
+                            d.text,
+                            d.language,
+                            d.policy_domain,
+                            d.doc_type,
+                            d.magnitude,
+                            meta_json,
+                            h,
+                            ts,
+                            ts,
+                            version,
+                        )
+                    )
+                elif existing_h == h:
+                    updates_unchanged.append((ts, d.doc_id))
+                else:
+                    updates_changed.append(
+                        (
+                            d.title,
+                            d.text,
+                            d.magnitude,
+                            meta_json,
+                            h,
+                            ts,
+                            ts,
+                            existing_h,
+                            version,
+                            d.doc_id,
+                        )
+                    )
+
+            if inserts:
+                cur.executemany(
                     "INSERT INTO documents (doc_id, source, country, date, url, title, "
                     "text, language, policy_domain, doc_type, magnitude, metadata_json, "
                     "content_hash, first_fetched_at, last_fetched_at, puremacro_version) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (d.doc_id, d.source, d.country, d.date.isoformat(), d.url, d.title,
-                     d.text, d.language, d.policy_domain, d.doc_type, d.magnitude,
-                     meta_json, h, ts, ts, version),
+                    inserts,
                 )
-                counts["new"] += 1
-            elif row[0] == h:
-                cur.execute(
+                counts["new"] += len(inserts)
+            if updates_unchanged:
+                cur.executemany(
                     "UPDATE documents SET last_fetched_at = ? WHERE doc_id = ?",
-                    (ts, d.doc_id),
+                    updates_unchanged,
                 )
-                counts["unchanged"] += 1
-            else:
-                cur.execute(
+                counts["unchanged"] += len(updates_unchanged)
+            if updates_changed:
+                cur.executemany(
                     "UPDATE documents SET title = ?, text = ?, magnitude = ?, "
                     "metadata_json = ?, content_hash = ?, last_fetched_at = ?, "
                     "n_revisions = n_revisions + 1, revised_at = ?, "
                     "previous_content_hash = ?, puremacro_version = ? WHERE doc_id = ?",
-                    (d.title, d.text, d.magnitude, meta_json, h, ts, ts, row[0],
-                     version, d.doc_id),
+                    updates_changed,
                 )
-                counts["updated"] += 1
+                counts["updated"] += len(updates_changed)
 
     def record_run(
         self,
@@ -236,9 +299,13 @@ class CorpusStore:
         cur = self._conn.execute(
             "INSERT INTO harvest_runs (started_at, finished_at, params_json, "
             "report_json, puremacro_version) VALUES (?, ?, ?, ?, ?)",
-            (int(started_at), int(time.time()),
-             json.dumps(params, default=_json_default, sort_keys=True),
-             json.dumps(report, default=_json_default), _version()),
+            (
+                int(started_at),
+                int(time.time()),
+                json.dumps(params, default=_json_default, sort_keys=True),
+                json.dumps(report, default=_json_default),
+                _version(),
+            ),
         )
         self._conn.commit()
         return int(cur.lastrowid)
@@ -253,7 +320,7 @@ class CorpusStore:
         doc_types: Iterable[str] | None = None,
         start_date: str | pd.Timestamp | None = None,
         end_date: str | pd.Timestamp | None = None,
-    ) -> "NarrativeCorpus":
+    ) -> NarrativeCorpus:
         """Return the stored documents (current versions) as a corpus."""
         from .harvest import NarrativeCorpus, NarrativeDocument
 
@@ -279,12 +346,22 @@ class CorpusStore:
             sql += " WHERE " + " AND ".join(where)
         docs = []
         for r in self._conn.execute(sql, args):
-            docs.append(NarrativeDocument(
-                doc_id=r[0], source=r[1], country=r[2], date=pd.Timestamp(r[3]),
-                url=r[4], title=r[5] or "", text=r[6], language=r[7],
-                policy_domain=r[8], doc_type=r[9], magnitude=r[10],
-                metadata=json.loads(r[11]) if r[11] else {},
-            ))
+            docs.append(
+                NarrativeDocument(
+                    doc_id=r[0],
+                    source=r[1],
+                    country=r[2],
+                    date=pd.Timestamp(r[3]),
+                    url=r[4],
+                    title=r[5] or "",
+                    text=r[6],
+                    language=r[7],
+                    policy_domain=r[8],
+                    doc_type=r[9],
+                    magnitude=r[10],
+                    metadata=json.loads(r[11]) if r[11] else {},
+                )
+            )
         # Date bounds are compared as Timestamps, not ISO strings, so mixed
         # timezone offsets in stored dates cannot mis-order.
         corpus = NarrativeCorpus(docs=docs, metadata={"store": str(self.path)})
@@ -315,4 +392,4 @@ class CorpusStore:
         )
 
 
-__all__ = ["CorpusStore", "default_corpus_path", "SCHEMA_VERSION"]
+__all__ = ["SCHEMA_VERSION", "CorpusStore", "default_corpus_path"]
