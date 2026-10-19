@@ -420,6 +420,8 @@ LAMINA = {
     "completa": (5.5, 2.9),   # full width, the whole body (no text)
     "media": (2.65, 2.3),     # a 0.48\textwidth column
     "media_alta": (2.65, 2.8),
+    "cuadrada": (4.0, 4.0),
+    "alta": (4.0, 6.0),
     "media_baja": (2.65, 1.8),
     "tercio": (1.75, 1.9),    # a third of the width
     "dos_tercios": (3.6, 2.5),
@@ -460,10 +462,26 @@ def figura(nrows: int = 1, ncols: int = 1, *, figsize=None, alto: bool = False,
     ``figsize`` can be a key of ``TAMANO`` (or of ``LAMINA``) or a pair of
     inches.  A figure made here needs no ``tight_layout()``.
     """
+    # Compatibility with `figura(ancho=7.5, alto=4.0)` overrides
+    ancho = kwargs.pop("ancho", None)
+    if not isinstance(alto, bool):
+        alto_val = alto
+        alto = False
+    else:
+        alto_val = kwargs.pop("alto", None)
+
     if figsize is None:
         figsize = tamano(nrows, ncols, alto=alto)
     elif isinstance(figsize, str):
-        figsize = TAMANO.get(figsize) or LAMINA[figsize]
+        original = figsize
+        figsize = TAMANO.get(original) or LAMINA.get(original)
+        if figsize is None:
+            raise KeyError(original)
+
+    if ancho is not None or alto_val is not None:
+        figsize = (ancho if ancho is not None else figsize[0],
+                   alto_val if alto_val is not None else figsize[1])
+
     if layout is not None:
         kwargs.setdefault("layout", layout)
     return plt.subplots(nrows, ncols, figsize=figsize, **kwargs)

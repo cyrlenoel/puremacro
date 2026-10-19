@@ -70,7 +70,7 @@ from .dynare import (
     _orig_stoch_simul, _linear_model_stoch_simul,
 )
 import functools as _functools
-LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul)
+# LinearModel.stoch_simul is already defined in LinearModel, no need to wrap it with itself which causes ValueError: wrapper loop when unwrapping
 from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
 from .extended_path import extended_path
 from .stacked_newton import (

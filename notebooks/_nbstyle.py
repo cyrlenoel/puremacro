@@ -420,6 +420,8 @@ LAMINA = {
     "completa": (5.5, 2.9),   # full width, the whole body (no text)
     "media": (2.65, 2.3),     # a 0.48\textwidth column
     "media_alta": (2.65, 2.8),
+    "cuadrada": (4.0, 4.0),
+    "alta": (4.0, 6.0),
     "media_baja": (2.65, 1.8),
     "tercio": (1.75, 1.9),    # a third of the width
     "dos_tercios": (3.6, 2.5),

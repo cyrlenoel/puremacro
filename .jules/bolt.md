@@ -7,3 +7,6 @@
 ## 2023-10-25 - Precompile regexes for Spanish lexicons
 **Learning:** `re.findall` with f-strings compiles the regex implicitly on every call, making it slow.
 **Action:** Used `functools.lru_cache` to cache a combined regex pattern per category, reducing iteration and implicit compilations, improving performance by over 10x.
+## 2026-10-19 - Resolve Python 3.12/3.13 CI failures
+**Learning:** Updates to tests and internal decorators can easily cause regressions.
+**Action:** Un-wrapped the `LinearModel.stoch_simul` decorator in `__init__.py` avoiding recursion errors on Py 3.12+. Updated the kwargs of `figura` in `_nbstyle.py` and tests to prevent failure.
