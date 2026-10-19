@@ -396,6 +396,8 @@ def _registrar_mapas() -> None:
 # is ~1000 px wide, so a 6.4-in figure shows at full size and a 9.6-in one is
 # scaled to ~2/3 -- which is why the two-panel widths stay under 10 in.
 TAMANO = {
+    "cuadrada": (5.0, 5.0), # cuadrada
+    "alta": (6.4, 5.0), # alta
     "1": (6.4, 4.0),          # one panel
     "1_alto": (6.4, 5.0),     # one panel, taller (phase diagrams, maps)
     "1_bajo": (6.4, 3.0),     # one panel, a strip (a single time series)
@@ -460,10 +462,23 @@ def figura(nrows: int = 1, ncols: int = 1, *, figsize=None, alto: bool = False,
     ``figsize`` can be a key of ``TAMANO`` (or of ``LAMINA``) or a pair of
     inches.  A figure made here needs no ``tight_layout()``.
     """
+    _is_alto_kw = isinstance(alto, float)
+    _alto_val = alto if _is_alto_kw else False
     if figsize is None:
         figsize = tamano(nrows, ncols, alto=alto)
     elif isinstance(figsize, str):
         figsize = TAMANO.get(figsize) or LAMINA[figsize]
+
+    _alto_kw = kwargs.pop("alto") if "alto" in kwargs and isinstance(kwargs["alto"], float) else None
+    if _alto_kw is None and _is_alto_kw:
+        _alto_kw = _alto_val
+    _ancho_kw = kwargs.pop("ancho") if "ancho" in kwargs else None
+    if _alto_kw is not None and _ancho_kw is not None:
+        figsize = (_ancho_kw, _alto_kw)
+    elif _ancho_kw is not None:
+        figsize = (_ancho_kw, figsize[1])
+    elif _alto_kw is not None:
+        figsize = (figsize[0], _alto_kw)
     if layout is not None:
         kwargs.setdefault("layout", layout)
     return plt.subplots(nrows, ncols, figsize=figsize, **kwargs)

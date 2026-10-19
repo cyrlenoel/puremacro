@@ -396,6 +396,8 @@ def _registrar_mapas() -> None:
 # is ~1000 px wide, so a 6.4-in figure shows at full size and a 9.6-in one is
 # scaled to ~2/3 -- which is why the two-panel widths stay under 10 in.
 TAMANO = {
+    "cuadrada": (5.0, 5.0), # cuadrada
+    "alta": (6.4, 5.0), # alta
     "1": (6.4, 4.0),          # one panel
     "1_alto": (6.4, 5.0),     # one panel, taller (phase diagrams, maps)
     "1_bajo": (6.4, 3.0),     # one panel, a strip (a single time series)

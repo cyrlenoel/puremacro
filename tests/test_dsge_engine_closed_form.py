@@ -634,7 +634,7 @@ def test_verify_derivatives_catches_non_analytic_equations():
 
 def test_parse_mod_keeps_stoch_simul_options_with_a_variable_list():
     parsed = parse_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
-    assert parsed["options"] == {"order": 2, "irf": 15}
+    assert parsed["options"] == {"order": 2, "irf": 15, "var_list": ["c", "k"]}
     sol = load_mod(RBC_DOCS.replace("stoch_simul(order=1, irf=20);", "stoch_simul(order=2, irf=15) c k;"))
     assert isinstance(sol, PrunedDSGESolution)
 

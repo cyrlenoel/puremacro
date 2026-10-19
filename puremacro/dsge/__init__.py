@@ -70,7 +70,10 @@ from .dynare import (
     _orig_stoch_simul, _linear_model_stoch_simul,
 )
 import functools as _functools
-LinearModel.stoch_simul = _functools.wraps(_orig_stoch_simul)(_linear_model_stoch_simul)
+import types
+_linear_model_stoch_simul.__doc__ = _orig_stoch_simul.__doc__
+_linear_model_stoch_simul.__signature__ = _functools.wraps(_orig_stoch_simul)(lambda *args, **kwargs: None).__signature__ if hasattr(_functools.wraps(_orig_stoch_simul)(lambda *args, **kwargs: None), "__signature__") else None
+LinearModel.stoch_simul = _linear_model_stoch_simul
 from .perfect_foresight import PerfectForesightResult, solve_perfect_foresight
 from .extended_path import extended_path
 from .stacked_newton import (
