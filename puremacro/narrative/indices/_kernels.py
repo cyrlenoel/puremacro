@@ -12,15 +12,22 @@ Slice 6a adds:
   - ``length_normalize`` parameter on ``keyword_count_kernel`` —
     Ahir-Bloom-Furceri WUI normalization (hits / total_words × 1000).
 """
+
 from __future__ import annotations
 
+import functools
 import re
-from typing import Iterable, Iterator
+from collections.abc import Iterable, Iterator
 
-import numpy as np
 import pandas as pd
 
 from ..types import VALID_RISKINDEX_NORMALIZATION as _VALID_NORMALIZATIONS
+
+
+@functools.lru_cache(maxsize=1024)
+def _get_term_regex(term: str) -> re.Pattern:
+    return re.compile(r"\b" + re.escape(term.lower()) + r"\b")
+
 
 _NEEDS_SUBSTRING = {"ja", "zh"}
 _TOKEN_RX = re.compile(r"\w+", flags=re.UNICODE)
@@ -36,46 +43,155 @@ _PARA_CJK_RX = re.compile(r"(?:\n\s*\n+)|　{2,}")
 # whole-word matching to avoid e.g. "noted" → "no".
 _NEG_WINDOW = 4
 _NEG_MARKERS: dict[str, frozenset[str]] = {
-    "en": frozenset({
-        "not", "no", "never", "neither", "nor", "without",
-        "hardly", "barely", "scarcely", "rarely", "seldom",
-        "doesn't", "doesnt", "don't", "dont",
-        "isn't", "isnt", "aren't", "arent", "wasn't", "wasnt", "weren't", "werent",
-        "won't", "wont", "wouldn't", "wouldnt", "shouldn't", "shouldnt",
-        "couldn't", "couldnt", "can't", "cant", "cannot",
-        "fail", "fails", "failed", "failing",
-    }),
-    "es": frozenset({
-        "no", "nunca", "jamás", "ni", "sin", "tampoco",
-        "apenas", "difícilmente", "raramente",
-        "deja", "deje", "dejó", "dejan",
-        "fracas", "fracasa", "fracasó",
-    }),
-    "pt": frozenset({
-        "não", "nao", "nunca", "jamais", "nem", "sem", "tampouco",
-        "mal", "raramente", "dificilmente",
-        "deixa", "deixe", "deixou",
-        "fracass", "fracassa", "fracassou",
-    }),
-    "de": frozenset({
-        "nicht", "kein", "keine", "keiner", "keinen", "keinem", "keines",
-        "nie", "niemals", "weder", "noch", "ohne",
-        "kaum", "schwerlich",
-    }),
-    "fr": frozenset({
-        "pas", "ne", "non", "ni", "sans", "jamais", "aucun", "aucune",
-        "guère", "peu",
-    }),
-    "it": frozenset({
-        "non", "no", "né", "ne", "mai", "senza", "nessun", "nessuno",
-        "appena", "raramente",
-    }),
-    "ja": frozenset({
-        "ない", "なく", "なかっ", "ません", "ぬ", "ぬる",
-    }),
-    "zh": frozenset({
-        "不", "没", "无", "未", "非", "莫", "勿",
-    }),
+    "en": frozenset(
+        {
+            "not",
+            "no",
+            "never",
+            "neither",
+            "nor",
+            "without",
+            "hardly",
+            "barely",
+            "scarcely",
+            "rarely",
+            "seldom",
+            "doesn't",
+            "doesnt",
+            "don't",
+            "dont",
+            "isn't",
+            "isnt",
+            "aren't",
+            "arent",
+            "wasn't",
+            "wasnt",
+            "weren't",
+            "werent",
+            "won't",
+            "wont",
+            "wouldn't",
+            "wouldnt",
+            "shouldn't",
+            "shouldnt",
+            "couldn't",
+            "couldnt",
+            "can't",
+            "cant",
+            "cannot",
+            "fail",
+            "fails",
+            "failed",
+            "failing",
+        }
+    ),
+    "es": frozenset(
+        {
+            "no",
+            "nunca",
+            "jamás",
+            "ni",
+            "sin",
+            "tampoco",
+            "apenas",
+            "difícilmente",
+            "raramente",
+            "deja",
+            "deje",
+            "dejó",
+            "dejan",
+            "fracas",
+            "fracasa",
+            "fracasó",
+        }
+    ),
+    "pt": frozenset(
+        {
+            "não",
+            "nao",
+            "nunca",
+            "jamais",
+            "nem",
+            "sem",
+            "tampouco",
+            "mal",
+            "raramente",
+            "dificilmente",
+            "deixa",
+            "deixe",
+            "deixou",
+            "fracass",
+            "fracassa",
+            "fracassou",
+        }
+    ),
+    "de": frozenset(
+        {
+            "nicht",
+            "kein",
+            "keine",
+            "keiner",
+            "keinen",
+            "keinem",
+            "keines",
+            "nie",
+            "niemals",
+            "weder",
+            "noch",
+            "ohne",
+            "kaum",
+            "schwerlich",
+        }
+    ),
+    "fr": frozenset(
+        {
+            "pas",
+            "ne",
+            "non",
+            "ni",
+            "sans",
+            "jamais",
+            "aucun",
+            "aucune",
+            "guère",
+            "peu",
+        }
+    ),
+    "it": frozenset(
+        {
+            "non",
+            "no",
+            "né",
+            "ne",
+            "mai",
+            "senza",
+            "nessun",
+            "nessuno",
+            "appena",
+            "raramente",
+        }
+    ),
+    "ja": frozenset(
+        {
+            "ない",
+            "なく",
+            "なかっ",
+            "ません",
+            "ぬ",
+            "ぬる",
+        }
+    ),
+    "zh": frozenset(
+        {
+            "不",
+            "没",
+            "无",
+            "未",
+            "非",
+            "莫",
+            "勿",
+        }
+    ),
 }
 
 
@@ -93,10 +209,10 @@ def _is_negated(norm: str, hit_start: int, language: str) -> bool:
         return False
     if language in _NEEDS_SUBSTRING:
         # CJK: scan the ~30 chars before the hit for a substring marker.
-        window = norm[max(0, hit_start - 30):hit_start]
+        window = norm[max(0, hit_start - 30) : hit_start]
         return any(m in window for m in markers)
     # Latin: take the preceding chunk, tokenize, take last N tokens.
-    window = norm[max(0, hit_start - 80):hit_start]
+    window = norm[max(0, hit_start - 80) : hit_start]
     tokens = _TOKEN_RX.findall(window)
     if not tokens:
         return False
@@ -126,8 +242,7 @@ def count_keywords(
             return sum(norm.count(t) for t in terms)
         n = 0
         for t in terms:
-            rx = r"\b" + re.escape(t.lower()) + r"\b"
-            n += len(re.findall(rx, norm))
+            n += len(_get_term_regex(t).findall(norm))
         return n
     # Negation-aware count: iterate matches and check the preceding window.
     n = 0
@@ -143,8 +258,7 @@ def count_keywords(
                 start = i + len(t)
         return n
     for t in terms:
-        rx = r"\b" + re.escape(t.lower()) + r"\b"
-        for m in re.finditer(rx, norm):
+        for m in _get_term_regex(t).finditer(norm):
             if not _is_negated(norm, m.start(), language):
                 n += 1
     return n
@@ -225,10 +339,14 @@ def cooccurrence_kernel(
         else:
             date, text, _ = record
             lang = language
-        score = 1.0 if all(
-            count_keywords(text, group, language=lang, negation=negation) > 0
-            for group in term_groups
-        ) else 0.0
+        score = (
+            1.0
+            if all(
+                count_keywords(text, group, language=lang, negation=negation) > 0
+                for group in term_groups
+            )
+            else 0.0
+        )
         yield (pd.Timestamp(date), score)
 
 
@@ -282,7 +400,9 @@ def sentence_cooccurrence_kernel(
                 count_keywords(s, group, language=lang, negation=negation) > 0
                 for group in term_groups
             )
-            phrase_hit = count_keywords(s, phrases, language=lang, negation=negation) > 0
+            phrase_hit = (
+                count_keywords(s, phrases, language=lang, negation=negation) > 0
+            )
             if cooc or phrase_hit:
                 matched += 1
         yield (pd.Timestamp(date), float(matched) / len(sentences))
@@ -348,10 +468,15 @@ def triple_cooccurrence_kernel(
                 total += 1.0
             else:
                 n_tokens = max(1, len(_TOKEN_RX.findall(w)))
-                density = count_keywords(
-                    w, term_groups[weight_group_idx], language=lang,
-                    negation=negation,
-                ) / n_tokens
+                density = (
+                    count_keywords(
+                        w,
+                        term_groups[weight_group_idx],
+                        language=lang,
+                        negation=negation,
+                    )
+                    / n_tokens
+                )
                 total += 1.0 + density
         yield (pd.Timestamp(date), float(total) / len(windows))
 
@@ -418,13 +543,13 @@ def normalize_series(
 
 
 __all__ = [
-    "count_keywords",
-    "_split_sentences",
     "_split_paragraphs",
-    "keyword_count_kernel",
+    "_split_sentences",
     "cooccurrence_kernel",
-    "sentence_cooccurrence_kernel",
-    "triple_cooccurrence_kernel",
-    "tone_kernel",
+    "count_keywords",
+    "keyword_count_kernel",
     "normalize_series",
+    "sentence_cooccurrence_kernel",
+    "tone_kernel",
+    "triple_cooccurrence_kernel",
 ]
