@@ -23,12 +23,10 @@ puremacro's cached data layer.
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
-
-from ._codes import is_country
 
 _SCHEMA_COLS = ["code", "date", "variable", "value", "sa_source", "source"]
 _EMPTY = pd.DataFrame(
@@ -129,40 +127,40 @@ def _project_quarterly_to_monthly(
     pd.DataFrame
         Monthly long-form DataFrame with dates on the 1st of each month.
     """
+    # ⚡ Bolt: Vectorize row duplication for expanding quarterly to monthly frequency
     if df_q.empty:
         return _EMPTY.copy()
 
-    records: list[dict[str, object]] = []
+    # Expand rows
+    res = df_q.iloc[np.repeat(np.arange(len(df_q)), 3)].reset_index(drop=True)
 
-    for _, row in df_q.iterrows():
-        base_date = pd.Timestamp(row["date"])
-        yr = base_date.year
-        q_month = base_date.month
-        val = float(row["value"])
-        var_name = str(row["variable"])
-        m_var = _norm_var_name(var_name, "M")
-        src = f"resampled_from_Q:{row['source']}"
-        sa = row["sa_source"]
+    # Offset
+    offset = np.tile([0, 1, 2], len(df_q))
 
-        for offset in (0, 1, 2):
-            m = q_month + offset
-            if m > 12:
-                break
-            records.append({
-                "code": row["code"],
-                "date": pd.Timestamp(f"{yr}-{m:02d}-01"),
-                "variable": m_var,
-                "value": val,
-                "sa_source": "quarterly_ffill" if offset != 0 else sa,
-                "source": src,
-                "is_imputed": offset != 0,
-            })
+    # Calculate dates exactly like original
+    base_dates = pd.to_datetime(res["date"])
+    years = base_dates.dt.year
+    months = base_dates.dt.month + offset
 
-    if not records:
+    # Handle year overflow
+    years = years + (months - 1) // 12
+    months = ((months - 1) % 12) + 1
+
+    res["date"] = pd.to_datetime({"year": years, "month": months, "day": 1})
+
+    res["variable"] = res["variable"].astype(str).apply(lambda v: _norm_var_name(v, "M"))
+    res["source"] = "resampled_from_Q:" + res["source"].astype(str)
+
+    res["is_imputed"] = offset != 0
+    res["sa_source"] = np.where(offset != 0, "quarterly_ffill", res["sa_source"])
+
+    # ⚡ Bolt: Explicitly cast the object to a string first to satisfy the type checker when dealing with weakly-typed object values retrieved from Pandas DataFrames
+    res["value"] = res["value"].astype(str).astype(float)
+
+    if res.empty:
         return _EMPTY.copy()
 
-    out = pd.DataFrame(records)
-    return out.drop_duplicates(subset=["code", "date", "variable"], keep="first")
+    return res.drop_duplicates(subset=["code", "date", "variable"], keep="first")
 
 
 def build_financial_panel(
@@ -233,7 +231,7 @@ def build_financial_panel(
 
     # 1. Sovereign Yields & Spreads (monthly)
     try:
-        from .fetch.financial import fetch_sovereign_yields, compute_sovereign_spreads
+        from .fetch.financial import compute_sovereign_spreads, fetch_sovereign_yields
         b_code = benchmark_code.strip().upper()
         yield_codes: list[str] | None
         if codes is not None and include_spreads and b_code not in codes:
