@@ -352,7 +352,7 @@
   function determinacyMap(el) {
     el.classList.add("chart-card");
     el.innerHTML = `<div class="chart-head"><div><p class="chart-title"></p><p class="chart-sub"></p></div>
-      <div class="chart-tools"><button type="button" data-act="table" aria-label="Toggle table view"></button><button type="button" data-act="csv">CSV</button></div></div>
+      <div class="chart-tools"><button type="button" data-act="table"></button><button type="button" data-act="csv">CSV</button></div></div>
       <div class="legend"></div><div class="chart"><div class="tooltip" role="status" aria-live="polite"></div></div><div class="table-view"></div>`;
     const plot = el.querySelector(".chart"), tip = el.querySelector(".tooltip"), legend = el.querySelector(".legend");
     const tableBtn = el.querySelector('[data-act="table"]'), csvBtn = el.querySelector('[data-act="csv"]'), table = el.querySelector(".table-view");
