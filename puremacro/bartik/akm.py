@@ -67,15 +67,16 @@ Goldsmith-Pinkham, P., Sorkin, I. and Swift, H. (2020). Bartik instruments:
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 from scipy.linalg import solve_triangular
 
-__all__ = ["shift_share_iv", "ShiftShareIVResult"]
+__all__ = ["ShiftShareIVResult", "shift_share_iv"]
 
 #: Relative tolerance of the collinearity check on the share columns: a column
 #: is dropped when the norm of its residual on the columns kept before it falls
@@ -248,11 +249,11 @@ def _share_projection(A: np.ndarray, b: np.ndarray, tol: float = _COLLINEAR_TOL)
     if n >= K and np.all(norms > 0):
         R = np.linalg.qr(np.column_stack([A, b]), mode="r")
         if np.all(np.abs(np.diag(R)[:K]) > tol * norms):
-            return np.ones(K, dtype=bool), solve_triangular(R[:K, :K], R[:K, K])
+            return np.ones(K, dtype=bool), solve_triangular(R[slice(None, K), slice(None, K)], R[slice(None, K), K])
     keep = _independent_columns(A, tol)
     k = int(keep.sum())
     R = np.linalg.qr(np.column_stack([A[:, keep], b]), mode="r")
-    return keep, solve_triangular(R[:k, :k], R[:k, k])
+    return keep, solve_triangular(R[slice(None, k), slice(None, k)], R[slice(None, k), k])
 
 
 def _cluster_sum(c: np.ndarray, labels: np.ndarray | None) -> np.ndarray:
@@ -449,7 +450,7 @@ def shift_share_iv(
         clusters = labels
     cl_sums = _cluster_sum(contrib, clusters)
     se_akm = float(np.sqrt(np.sum(cl_sums ** 2)) / abs(zx))
-    n_clusters = int(len(cl_sums)) if labels is not None else None
+    n_clusters = len(cl_sums) if labels is not None else None
 
     # robust first stage
     pi = zx / float(np.sum(w * zt * zt))

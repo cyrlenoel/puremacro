@@ -44,9 +44,9 @@ Kitagawa, G. (1996). Monte Carlo Filter and Smoother for Non-Gaussian Nonlinear 
 from __future__ import annotations
 
 import math
-import warnings
-from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -54,8 +54,11 @@ import scipy.linalg
 import scipy.optimize
 import scipy.stats
 
-from puremacro.dsge.priors import log_prior, Prior, NormalPrior, BetaPrior, GammaPrior, UniformPrior
-
+from puremacro.dsge.priors import (
+    BetaPrior,
+    NormalPrior,
+    log_prior,
+)
 
 # ---------------------------------------------------------------------------
 # Systematic Resampling Algorithm in O(N)
@@ -276,7 +279,7 @@ def _draw_prior_particles(
                 for _ in range(50):
                     if not np.any(mask):
                         break
-                    draws[mask] = rng.normal(mean, std, size=np.sum(mask))
+                    draws[mask] = rng.normal(float(mean), float(std), size=int(np.sum(mask)))
                     mask = (draws < lb) | (draws > ub)
                 if np.any(mask):
                     draws[mask] = np.clip(draws[mask], lb if math.isfinite(lb) else mean - 3 * std,
@@ -431,7 +434,7 @@ class SMCResult:
         lines = [
             "// Sequential Monte Carlo (SMC) Posterior Summary",
             f"// Log MDD: {self.mdd:.4f} (SE: {self.mdd_se:.4f})",
-            f"#table(",
+            "#table(",
             f"  columns: {cols},",
             "  [Parameter], " + ", ".join(f"[{col}]" for col in self.posterior_summary.columns) + ",",
         ]
@@ -787,8 +790,7 @@ def smc_estimate(
             break
 
     # Ensure final phi reached 1.0
-    if tempering_history[-1] < 1.0:
-        tempering_history[-1] = 1.0
+    tempering_history[-1] = max(tempering_history[-1], 1.0)
 
     # 3. Compute Exact Marginal Data Density (MDD) and SE
     mdd_val = float(sum(item[0] for item in log_z_history))
@@ -942,9 +944,9 @@ class SMCSampler:
     def _setup_dsge_target(self, custom_priors: Mapping[str, Any] | None) -> None:
         """Configure DSGE Kalman filter likelihood and priors."""
         from puremacro.dsge.dynare import _resolve_dynare_model
+        from puremacro.dsge.estimate import _stationary_init
         from puremacro.dsge.observation import make_state_space_from_varobs
         from puremacro.state_space import kalman_filter
-        from puremacro.dsge.estimate import _stationary_init
 
         m = self.m
         data = self.data
@@ -1008,8 +1010,8 @@ class SMCSampler:
         if getattr(m, "_dynare_equations", None) is not None and (
             me is None or isinstance(me, Mapping)
         ):
-            from puremacro.dsge.build import _make_observation_eq
             from puremacro.dsge._estimated_params import EstimatedParamSpec
+            from puremacro.dsge.build import _make_observation_eq
 
             est = getattr(m, "_estimated_params", None)
             declared = {sp.name: sp for sp in est.specs} if est is not None else {}
@@ -1387,11 +1389,11 @@ def bootstrap_particle_filter(
 
 
 __all__ = [
-    "systematic_resample",
-    "fixed_tempering_schedule",
-    "solve_adaptive_phi",
     "SMCResult",
-    "smc_estimate",
     "SMCSampler",
     "bootstrap_particle_filter",
+    "fixed_tempering_schedule",
+    "smc_estimate",
+    "solve_adaptive_phi",
+    "systematic_resample",
 ]

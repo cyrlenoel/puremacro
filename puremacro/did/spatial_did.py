@@ -191,8 +191,9 @@ Driscoll, J.C. and Kraay, A.C. (1998). Consistent covariance matrix estimation
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -205,11 +206,11 @@ from ..lp._panel_helpers import as_panel_index, two_way_fe_within
 from ..spatial.weights import SpatialWeights, _coerce_coords, haversine_km
 
 __all__ = [
-    "spatial_did",
-    "exposure_rings",
-    "contiguity_rings",
-    "SpatialDiDResult",
     "RingAssignment",
+    "SpatialDiDResult",
+    "contiguity_rings",
+    "exposure_rings",
+    "spatial_did",
 ]
 
 _RING_TIMINGS = ("already_treated", "ever_treated")
@@ -529,11 +530,11 @@ def _event_clock(code: np.ndarray, R: int) -> tuple:
     has_entry = exposed.any(axis=1)
     a_idx = np.where(has_entry, exposed.argmax(axis=1), -1)
     entry_ring = np.where(has_entry, code[np.arange(n), np.maximum(a_idx, 0)], -1)
-    ev = np.where(has_entry[:, None],
+    ev = np.where(has_entry[:, None].astype(bool).astype(bool),
                   np.arange(T)[None, :] - a_idx[:, None], np.nan)
     switch = np.zeros(n, dtype=bool)
     for i in range(n):
-        if not has_entry[i]:
+        if not bool(has_entry[i]):
             continue
         tail = code[i, a_idx[i]:]
         switch[i] = bool(np.any(tail[(tail >= 0) & (tail <= R)] != entry_ring[i]))
@@ -1309,8 +1310,8 @@ def _sandwich(
     ent = np.asarray(fit["entity_keys"])
     tim = np.asarray(fit["time_keys"])
     n_obs, k = X.shape
-    n_units = int(len(np.unique(ent)))
-    n_periods = int(len(np.unique(tim)))
+    n_units = len(np.unique(ent))
+    n_periods = len(np.unique(tim))
     k_total = int(k + n_units + n_periods - 1)
 
     if cov_type == "conley":
@@ -1333,7 +1334,7 @@ def _sandwich(
     else:
         keys = ent if cluster_keys is None else np.asarray(cluster_keys)
         S = _cluster_meat(X, u, keys)
-        G = int(len(np.unique(keys)))
+        G = len(np.unique(keys))
         if small_sample and G > 1 and n_obs > k_total:
             dof = (G / (G - 1.0)) * ((n_obs - 1.0) / (n_obs - k_total))
         else:
@@ -1684,7 +1685,7 @@ class SpatialDiDResult:
             tag = "-" if code == len(self.ring_labels) - 1 else str(code)
             if not np.isfinite(r["effect"]):
                 lines.append(
-                    f"  {tag:<5s}  {str(r['label']):<16s} {int(r['n_units']):>6d}"
+                    f"  {tag:<5s}  {r['label']!s:<16s} {int(r['n_units']):>6d}"
                     + ("         .       .   (omitted category)"
                        if code == len(self.ring_labels) - 1
                        else "         .       .   (dropped from the design)"))
@@ -1692,12 +1693,12 @@ class SpatialDiDResult:
             se = r["se"]
             if np.isfinite(se):
                 lines.append(
-                    f"  {tag:<5s}  {str(r['label']):<16s} {int(r['n_units']):>6d}"
+                    f"  {tag:<5s}  {r['label']!s:<16s} {int(r['n_units']):>6d}"
                     f" {r['effect']:>+9.4f} {se:>7.4f}   "
                     f"[{r['lo']:+.4f}, {r['hi']:+.4f}]  {r['p']:>7.4f}")
             else:
                 lines.append(
-                    f"  {tag:<5s}  {str(r['label']):<16s} {int(r['n_units']):>6d}"
+                    f"  {tag:<5s}  {r['label']!s:<16s} {int(r['n_units']):>6d}"
                     f" {r['effect']:>+9.4f}     nan   "
                     "(non-positive sandwich variance)")
         theta_txt = ", ".join(f"{t:+.3f}" for t in np.atleast_1d(self.theta))
@@ -1718,12 +1719,12 @@ class SpatialDiDResult:
             df_txt = "nan" if not np.isfinite(df) else str(int(df))
             if bool(r.get("underpowered", False)):
                 lines.append(
-                    f"  {str(r['test']):<28s} {str(r['null']):<26s} "
+                    f"  {r['test']!s:<28s} {r['null']!s:<26s} "
                     f"chi2({df_txt}) NOT REPORTED — a ring in this restriction "
                     f"is carried by < {_MIN_UNITS_FOR_JOINT} units")
                 continue
             lines.append(
-                f"  {str(r['test']):<28s} {str(r['null']):<26s} "
+                f"  {r['test']!s:<28s} {r['null']!s:<26s} "
                 f"chi2({df_txt}) = {r['stat']:.4g}, p = {r['p']:.4g}")
         if np.isfinite(self.outer_ring_contrast_bound):
             share = self.outer_ring_contrast_share
@@ -2088,7 +2089,7 @@ def _event_study_fit(ctx: dict) -> dict:
         row.update(_inference_row(float(delta[i]), float(se[i]), z))
         row["att"] = row.pop("effect")
         row["n_obs"] = int(m.sum())
-        row["n_cohorts"] = int(len(np.unique(a_idx[iu][m])))
+        row["n_cohorts"] = len(np.unique(a_idx[iu][m]))
         rows.append(row)
     es_df = pd.DataFrame(rows)[
         ["ring", "label", "event_time", "att", "se", "t", "p", "lo", "hi",
@@ -2109,7 +2110,7 @@ def _event_study_fit(ctx: dict) -> dict:
         row = {"ring": r, "label": labels[r]}
         row.update(_inference_row(att, float(np.sqrt(v)) if v >= 0 else np.nan, z))
         row["att"] = row.pop("effect")
-        row["n_post_cells"] = int(len(post))
+        row["n_post_cells"] = len(post)
         att_rows.append(row)
         if len(post) >= 2:
             Rm = np.zeros((len(post) - 1, len(out_cells)))
@@ -2850,8 +2851,8 @@ def spatial_did(
     ent_keys = np.asarray(fit["entity_keys"])
     tim_keys = np.asarray(fit["time_keys"])
     n_obs = int(fit["n_obs"])
-    n_units_fit = int(len(np.unique(ent_keys)))
-    n_periods_fit = int(len(np.unique(tim_keys)))
+    n_units_fit = len(np.unique(ent_keys))
+    n_periods_fit = len(np.unique(tim_keys))
 
     # ---------------- STEP 6a: covariance settings -------------------------
     coords_df = None
@@ -3110,7 +3111,7 @@ def spatial_did(
     }
     es_df = att_ring_df = pre_df = None
     resolved_es = "none"
-    n_cohorts = int(len(np.unique(a_idx[has_entry]))) if has_entry.any() else 0
+    n_cohorts = len(np.unique(a_idx[has_entry])) if has_entry.any() else 0
     if event_study:
         resolved_es = (event_study_estimator if event_study_estimator != "auto"
                        else ("twfe" if n_cohorts <= 1 else "sunab"))

@@ -17,21 +17,18 @@ import inspect
 import json
 import math
 import os
-from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
-import time
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from pathlib import Path
 
 import numpy as np
 import pytest
 import scipy.sparse as sp
 
 import puremacro
-import puremacro.dp as dp
+from puremacro import dp
 from puremacro.dp import ModelSpecError
 from puremacro.models.hank_sequence_space import _solve_two_asset_household_block
 
@@ -56,7 +53,7 @@ def require_feature(feature_id: str, condition: bool, reason: str) -> None:
         pytest.fail(f"[{feature_id} FAILED GATE] Required capability or artifact missing: {reason}")
 
 
-def _resolve_publicar_web_path() -> Optional[Path]:
+def _resolve_publicar_web_path() -> Path | None:
     """Find the authoritative publicar_web.py in repo or teaching checkout."""
     candidates = [
         CURSO_DIR / "scripts" / "publicar_web.py",
@@ -68,7 +65,7 @@ def _resolve_publicar_web_path() -> Optional[Path]:
     return None
 
 
-def _resolve_exercises_paths() -> Tuple[Optional[Path], Optional[Path]]:
+def _resolve_exercises_paths() -> tuple[Path | None, Path | None]:
     """Return paths to EXERCISES.md and EXERCISES_ES.md if present."""
     en = NOTEBOOKS_DIR / "EXERCISES.md"
     es = NOTEBOOKS_DIR / "EXERCISES_ES.md"
@@ -92,7 +89,7 @@ def _count_joss_words(markdown_text: str) -> int:
     return len(words)
 
 
-def _run_cmd(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 120) -> subprocess.CompletedProcess:
+def _run_cmd(cmd: list[str], cwd: Path | None = None, timeout: int = 120) -> subprocess.CompletedProcess:
     """Execute a command safely and return CompletedProcess."""
     return subprocess.run(
         cmd,
@@ -110,11 +107,11 @@ def _run_cmd(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 120) -> 
 # Shared Session Caches for Expensive Verification (mypy, site build, guards)
 # ===========================================================================
 
-_CACHED_BUILD_SITIO: Optional[subprocess.CompletedProcess] = None
-_CACHED_MYPY_ALL: Optional[subprocess.CompletedProcess] = None
-_CACHED_MYPY_ERRORS: Optional[Dict[str, List[str]]] = None
-_CACHED_RELEASE_CHECK: Optional[subprocess.CompletedProcess] = None
-_CACHED_RESEARCH_GUARD: Optional[subprocess.CompletedProcess] = None
+_CACHED_BUILD_SITIO: subprocess.CompletedProcess | None = None
+_CACHED_MYPY_ALL: subprocess.CompletedProcess | None = None
+_CACHED_MYPY_ERRORS: dict[str, list[str]] | None = None
+_CACHED_RELEASE_CHECK: subprocess.CompletedProcess | None = None
+_CACHED_RESEARCH_GUARD: subprocess.CompletedProcess | None = None
 
 
 def _get_build_sitio_result() -> subprocess.CompletedProcess:
@@ -139,7 +136,7 @@ def _get_mypy_all_result() -> subprocess.CompletedProcess:
     return _CACHED_MYPY_ALL
 
 
-def _get_mypy_errors_by_file() -> Dict[str, List[str]]:
+def _get_mypy_errors_by_file() -> dict[str, list[str]]:
     global _CACHED_MYPY_ERRORS
     if _CACHED_MYPY_ERRORS is None:
         res = _get_mypy_all_result()
@@ -383,9 +380,10 @@ class TestTier1Track1CoursePortal:
 
     def test_t1_f4_04_png_images_opacity_invariants(self):
         """F4: Embedded PNG images in course notebooks adhere to opacity requirements."""
-        from PIL import Image
-        import io
         import base64
+        import io
+
+        from PIL import Image
 
         checked = 0
         for nb_path in (CURSO_DIR / "notebooks").glob("T05_G*.ipynb"):
@@ -560,7 +558,7 @@ class TestTier1Track3NextGenCapabilities:
         """F9: TwoAssetEGMPlan exists in puremacro.dp or puremacro.models.hank_sequence_space."""
         has_plan = False
         try:
-            import puremacro.dp as dp
+            from puremacro import dp
             if hasattr(dp, "TwoAssetEGMPlan") or hasattr(dp, "TwoAssetPlan"):
                 has_plan = True
         except ImportError:
@@ -581,7 +579,7 @@ class TestTier1Track3NextGenCapabilities:
 
     def test_t1_f9_03_hank_model_two_asset_dp_integration(self):
         """F9: HANKModel handles two-asset configuration."""
-        import puremacro.dsge.hank as hank
+        from puremacro.dsge import hank
         assert hasattr(hank, "HANKModel"), "HANKModel missing from puremacro.dsge.hank"
 
     def test_t1_f9_04_ssj_accuracy_vs_finite_difference_mit(self):
@@ -589,7 +587,7 @@ class TestTier1Track3NextGenCapabilities:
         import puremacro.models.hank_sequence_space as hss
         require_feature("F9", hasattr(hss, "_two_asset_household_jacobians"),
                               "_two_asset_household_jacobians pending in Milestone 3")
-        assert callable(getattr(hss, "_two_asset_household_jacobians"))
+        assert callable(hss._two_asset_household_jacobians)
 
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_t1_f9_05_two_asset_distribution_mass_conservation(self):
@@ -636,14 +634,14 @@ class TestTier1Track3NextGenCapabilities:
     # --- Feature 11: Pruned Higher-Order OccBin ---
     def test_t1_f11_01_solve_pruned_occbin_available(self):
         """F11: solve_pruned_occbin available in puremacro.dsge.occbin."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         has_pruned = hasattr(occbin, "solve_pruned_occbin")
         require_feature("F11", has_pruned, "solve_pruned_occbin pending in Milestone 3")
         assert has_pruned
 
     def test_t1_f11_02_reduction_to_linear_occbin_when_sigma_zero(self):
         """F11: When sigma=0, solve_pruned_occbin reduces bit-identically to linear solve_occbin."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("F11", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         sig = inspect.signature(occbin.solve_pruned_occbin)
         assert "sigma" in sig.parameters, "sigma missing from solve_pruned_occbin parameters"
@@ -651,19 +649,19 @@ class TestTier1Track3NextGenCapabilities:
 
     def test_t1_f11_03_reduction_to_pruned_dsge_when_unconstrained(self):
         """F11: When constraint never binds, output matches second-order pruned perturbation."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("F11", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         assert callable(occbin.solve_pruned_occbin)
 
     def test_t1_f11_04_binding_regime_simulation_deterministic(self):
         """F11: Binding regime simulation executes deterministically."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("F11", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         assert callable(occbin.solve_pruned_occbin)
 
     def test_t1_f11_05_regime_convergence_properties(self):
         """F11: OccBin regime sequence converges within maximum iterations."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("F11", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         assert callable(occbin.solve_pruned_occbin)
 
@@ -910,6 +908,7 @@ class TestTier2BoundaryTrack2:
     def test_t2_f5_01_none_dimensions_in_trade_dataclass(self):
         """F5: Dataclass dimensions reject None when int required."""
         import typing
+
         from puremacro.trade.condensed import TableBuildReport
         hints = typing.get_type_hints(TableBuildReport)
         assert hints["n_countries"] is int
@@ -926,7 +925,7 @@ class TestTier2BoundaryTrack2:
 
     def test_t2_f5_03_trade_solver_optional_kwargs_types(self):
         """F5: Type safety on optional **kwargs in solver."""
-        from puremacro.trade.solver import _reject_unknown_options, _SOLVER_OPTIONS
+        from puremacro.trade.solver import _SOLVER_OPTIONS, _reject_unknown_options
         _reject_unknown_options("test_solver", {"krylov_method": "gmres"}, _SOLVER_OPTIONS)
         with pytest.raises(TypeError, match="unexpected keyword argument"):
             _reject_unknown_options("test_solver", {"invalid_option": 123}, _SOLVER_OPTIONS)
@@ -961,7 +960,7 @@ class TestTier2BoundaryTrack2:
 
     def test_t2_f6_02_priors_zero_variance_hyperparameters(self):
         """F6: Prior distributions validate bounds and hyperparameter types."""
-        import puremacro.dsge.priors as priors
+        from puremacro.dsge import priors
         assert hasattr(priors, "Prior")
         assert hasattr(priors, "ensure_prior")
         assert hasattr(priors, "log_prior")
@@ -969,8 +968,10 @@ class TestTier2BoundaryTrack2:
     def test_t2_f6_03_particle_filter_single_particle(self):
         """F6: Particle filter boundary with N=1 particle."""
         from puremacro.dsge.particle_filter import (
-            systematic_resample, stratified_resample,
-            residual_resample, multinomial_resample
+            multinomial_resample,
+            residual_resample,
+            stratified_resample,
+            systematic_resample,
         )
         rng = np.random.default_rng(42)
         weights = np.array([1.0])
@@ -995,7 +996,7 @@ class TestTier2BoundaryTrack2:
     # F7 Boundary
     def test_t2_f7_01_vfi_single_point_grid(self):
         """F7: VFI discretization handles n=1 boundary."""
-        from puremacro.vfi.discretize import tauchen, rouwenhorst
+        from puremacro.vfi.discretize import rouwenhorst, tauchen
         with pytest.raises(ValueError, match=r"n must be >= 2"):
             tauchen(n=1, rho=0.9, sigma=0.1)
         with pytest.raises(ValueError, match=r"n must be >= 2"):
@@ -1014,6 +1015,7 @@ class TestTier2BoundaryTrack2:
     def test_t2_f7_03_did_zero_treatment_units(self):
         """F7: Spatial DID handles 0 treated units gracefully."""
         import pandas as pd
+
         from puremacro.did.spatial_did import spatial_did
         df = pd.DataFrame({
             "unit": [1, 2, 3, 1, 2, 3],
@@ -1059,8 +1061,8 @@ class TestTier2BoundaryTrack2:
 
     def test_t2_f8_02_mypy_strict_optional_boundary(self):
         """F8: Optional fields explicitly type annotated."""
-        import types
         import typing
+
         from puremacro.trade.gpu.backend import DeviceInfo
         hints = typing.get_type_hints(DeviceInfo)
         assert hints["device"] is str
@@ -1096,7 +1098,8 @@ class TestTier2BoundaryTrack2:
             lnk = tpath / "lnk.txt"
             lnk.symlink_to(real)
             assert lnk.is_symlink()
-            assert os.readlink(lnk) == str(real)
+            # Windows long path prefixes sometimes get returned by os.readlink
+            assert os.readlink(lnk).replace("\\\\?\\", "") == str(real).replace("\\\\?\\", "")
             dangling = tpath / "dangling.txt"
             dangling.symlink_to(tpath / "nonexistent.txt")
             assert dangling.is_symlink()
@@ -1189,7 +1192,7 @@ class TestTier2BoundaryTrack3:
 
     def test_t2_f10_03_kalman_score_empty_observation_series(self):
         """F10: T=0 observations returns zero gradient."""
-        from puremacro.dsge._gradients import kalman_score, StateSpaceSensitivity
+        from puremacro.dsge._gradients import StateSpaceSensitivity, kalman_score
         from puremacro.state_space import StateSpaceModel
         ss = StateSpaceModel(
             T=np.array([[0.8]]),
@@ -1219,7 +1222,7 @@ class TestTier2BoundaryTrack3:
 
     def test_t2_f10_04_kalman_score_unidentified_parameter(self):
         """F10: Unidentified parameter derivative is identically zero."""
-        from puremacro.dsge._gradients import kalman_score, StateSpaceSensitivity
+        from puremacro.dsge._gradients import StateSpaceSensitivity, kalman_score
         from puremacro.state_space import StateSpaceModel
         ss = StateSpaceModel(
             T=np.array([[0.8]]),
@@ -1254,7 +1257,7 @@ class TestTier2BoundaryTrack3:
     # F11 Boundary
     def test_t2_f11_01_occbin_zero_shock_sequence(self):
         """F11: Zero shock sequence produces zero binding periods."""
-        from puremacro.dsge import build_dynare, OccBinConstraint, solve_occbin
+        from puremacro.dsge import OccBinConstraint, build_dynare, solve_occbin
         params = {"beta": 0.99, "sigma": 1.0, "kappa": 0.1, "phi_pi": 1.5, "phi_y": 0.125, "rho_g": 0.8, "r_ss": 0.01}
         variables = ["y", "pi", "r", "g"]
         shocks = ["eps_r", "eps_g"]
@@ -1286,7 +1289,7 @@ class TestTier2BoundaryTrack3:
 
     def test_t2_f11_02_occbin_massive_shock_immediate_zlb(self):
         """F11: Extreme shock induces immediate period 0 constraint violation."""
-        from puremacro.dsge import build_dynare, OccBinConstraint, solve_occbin
+        from puremacro.dsge import OccBinConstraint, build_dynare, solve_occbin
         params = {"beta": 0.99, "sigma": 1.0, "kappa": 0.1, "phi_pi": 1.5, "phi_y": 0.125, "rho_g": 0.8, "r_ss": 0.01}
         variables = ["y", "pi", "r", "g"]
         shocks = ["eps_r", "eps_g"]
@@ -1332,7 +1335,7 @@ class TestTier2BoundaryTrack3:
 
     def test_t2_f11_04_occbin_pruning_order_validation(self):
         """F11: Order validation for pruned OccBin simulation."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         if hasattr(occbin, "solve_pruned_occbin"):
             with pytest.raises(ValueError, match="order"):
                 occbin.solve_pruned_occbin(None, None, None, np.zeros(2), order=3)
@@ -1488,7 +1491,7 @@ class TestTier3CrossFeatureCombinations:
 
     def test_t3_01_occbin_pruned_interaction_under_reversal_shock(self):
         """T3.1 (F11+F10+F6): OccBin coupled with second-order pruning under sharp recession and rebound."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("T3", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         assert callable(occbin.solve_pruned_occbin)
 
@@ -1525,14 +1528,14 @@ class TestTier3CrossFeatureCombinations:
 
     def test_t3_07_static_typing_and_pruned_occbin_signatures(self):
         """T3.7 (F6+F8+F11): solve_pruned_occbin adheres to DSGE solution protocols."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("T3", hasattr(occbin, "solve_pruned_occbin"), "solve_pruned_occbin pending")
         assert callable(occbin.solve_pruned_occbin)
 
 
     def test_t3_09_fertility_lifecycle_dp_to_microframe_to_ssj(self):
         """T3.9 (F7+F9+F14): Lifecycle DP output fed into to_microframe and evaluated via SSJ."""
-        import puremacro.dp as dp
+        from puremacro import dp
         assert hasattr(dp, "Model") or hasattr(dp, "to_microframe")
 
 
@@ -1545,7 +1548,7 @@ class TestTier3CrossFeatureCombinations:
 
     def test_t3_13_occbin_with_analytical_gradients_regime_sensitivity(self):
         """T3.13 (F10+F11): Sensitivity of OccBin regime threshold with respect to structural parameters."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         assert hasattr(occbin, "solve_occbin")
 
     def test_t3_14_two_asset_hank_monetary_policy_zlb_regime(self):
@@ -1556,8 +1559,8 @@ class TestTier3CrossFeatureCombinations:
     def test_t3_15_cross_package_import_cleanliness_pyodide_compatibility(self):
         """T3.15 (F1–F15): All upgraded modules import cleanly without C-extension hard crashes."""
         import puremacro
-        import puremacro.dsge
         import puremacro.dp
+        import puremacro.dsge
         import puremacro.trade
         import puremacro.vfi
         assert puremacro.__version__ is not None
@@ -1611,7 +1614,7 @@ class TestTier4RealWorldScenarios:
 
     def test_t4_scenario5_zlb_monetary_policy_under_2nd_order_pruning(self):
         """Tier 4, Scenario 5: ZLB Occasionally Binding Monetary Policy under 2nd-order Pruning (F11)."""
-        import puremacro.dsge.occbin as occbin
+        from puremacro.dsge import occbin
         require_feature("Tier 4 Scenario 5", hasattr(occbin, "solve_pruned_occbin"),
                               "solve_pruned_occbin pending in Milestone 3")
         assert callable(occbin.solve_pruned_occbin)

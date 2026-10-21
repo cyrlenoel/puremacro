@@ -19,8 +19,9 @@ import importlib.util
 import platform
 import sys
 import warnings
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Any, Generator, Literal
+from typing import Any, Literal
 
 import numpy as np
 
@@ -73,7 +74,7 @@ def has_mlx() -> bool:
     return importlib.util.find_spec("mlx") is not None
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _load_torch() -> Any | None:
     """Import and return ``torch`` on first use; None when absent or broken.
 
@@ -94,7 +95,7 @@ def _load_torch() -> Any | None:
     return torch
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _load_mlx() -> Any | None:
     """Import and return ``mlx.core`` on first use; None when absent or broken."""
     if not has_mlx():
@@ -474,7 +475,7 @@ def get_memory_usage(
 
     # CPU / OS level fallback
     try:
-        import resource
+        import resource  # type: ignore
         usage = resource.getrusage(resource.RUSAGE_SELF)
         # On macOS, ru_maxrss is in bytes; on Linux, in kilobytes
         scale = (1024**2) if platform.system() == "Darwin" else 1024.0

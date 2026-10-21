@@ -40,24 +40,23 @@ from __future__ import annotations
 import math
 import re
 import warnings
-from dataclasses import dataclass, field
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
-import scipy.linalg
 
 from puremacro.dsge._ast import BinOp, Call, Const, Node, Param, UnaryOp, Var
-from puremacro.dsge.build import LinearModel, ModelError, SteadyStateError
-from puremacro.dsge.klein import BlanchardKahnError, KleinSolution, klein_solve
 from puremacro.dsge._parser import (
-    DynareParseError,
     ParsedModelDAG,
     Parser,
     Tokenizer,
     parse_mod_to_dag,
 )
+from puremacro.dsge.build import LinearModel
+from puremacro.dsge.klein import KleinSolution, klein_solve
 
 
 def _solve_lead_lag_system(
@@ -753,7 +752,7 @@ class RamseyResult:
             axes_flat = np.atleast_1d(axes).flatten()
         else:
             fig = ax.figure
-            axes_flat = [ax]
+            axes_flat = np.array([ax])
 
         for i, col in enumerate(cols):
             if i < len(axes_flat):
@@ -969,9 +968,7 @@ def ramsey_model(
         dag = parse_mod_to_dag(text)
     elif isinstance(model_or_dag, ParsedModelDAG):
         dag = model_or_dag
-    elif isinstance(model_or_dag, LinearModel):
-        linear_model = model_or_dag
-    elif hasattr(model_or_dag, "variables") and hasattr(model_or_dag, "_A_0"):
+    elif isinstance(model_or_dag, LinearModel) or hasattr(model_or_dag, "variables") and hasattr(model_or_dag, "_A_0"):
         linear_model = model_or_dag
     else:
         raise TypeError(
@@ -1273,7 +1270,7 @@ def ramsey_model(
         foc_nodes=foc_nodes,
     )
     # Constraint nodes for RamseyResult.to_latex (not a dataclass field).
-    setattr(result, "_constraint_nodes", [node.simplify() for node in constraint_nodes])
+    result._constraint_nodes = [node.simplify() for node in constraint_nodes]
     return result
 
 
@@ -1346,9 +1343,9 @@ def detrend_bgp(
 detrend_model = detrend_bgp
 
 __all__ = [
-    "ramsey_model",
     "RamseyResult",
     "derive_ramsey_focs",
     "detrend_bgp",
     "detrend_model",
+    "ramsey_model",
 ]

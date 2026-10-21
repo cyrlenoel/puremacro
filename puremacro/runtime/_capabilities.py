@@ -46,12 +46,12 @@ from typing import Any
 __all__ = [
     "Capabilities",
     "capabilities",
-    "refresh",
-    "report",
-    "is_pyodide",
-    "is_tablet",
     "get_runtime_environment",
     "is_mobile_or_constrained",
+    "is_pyodide",
+    "is_tablet",
+    "refresh",
+    "report",
 ]
 
 # Host families. "pyodide" is the browser/WASM kernel (juno.sh, JupyterLite);

@@ -45,10 +45,11 @@ investment-irreversibility complementarity problem.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from numbers import Integral
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -56,9 +57,10 @@ from scipy import linalg, sparse
 from scipy.sparse import linalg as spla
 
 from puremacro.reports import df_to_latex, df_to_markdown, df_to_typst
+
 from ._results import DynamicCalibration, DynamicSolveError, EconomicDomainError
 
-__all__ = ["DynamicTariff", "tariff_path", "DynamicEconomy", "EconomicDomainError"]
+__all__ = ["DynamicEconomy", "DynamicTariff", "EconomicDomainError", "tariff_path"]
 
 _USES = ("intermediate", "consumption", "investment")
 
@@ -148,7 +150,7 @@ class DynamicTariff:
     @classmethod
     def build(cls, rates: Any, *, consumption_rates: Any | None = None,
               investment_rates: Any | None = None, label: str = "policy",
-              metadata: dict[str, Any] | None = None) -> "DynamicTariff":
+              metadata: dict[str, Any] | None = None) -> DynamicTariff:
         """Validate (finite, two-dimensional, > -1, equal shapes); the fingerprint follows."""
         common = np.array(rates, dtype=float, copy=True)
         if common.ndim != 2:
@@ -162,7 +164,7 @@ class DynamicTariff:
                    label=str(label), metadata=dict(metadata or {}))
 
     @classmethod
-    def zero(cls, calibration: DynamicCalibration) -> "DynamicTariff":
+    def zero(cls, calibration: DynamicCalibration) -> DynamicTariff:
         """The baseline: no additional duties."""
         return cls.build(np.zeros((calibration.n_cells, calibration.n_countries)), label="baseline")
 
@@ -170,7 +172,7 @@ class DynamicTariff:
     def uniform(cls, calibration: DynamicCalibration, importer: str | int, rate: float, *,
                 exporters: Sequence[str] | None = None,
                 sectors: Sequence[str] | str | None = None,
-                uses: Sequence[str] = _USES, label: str | None = None) -> "DynamicTariff":
+                uses: Sequence[str] = _USES, label: str | None = None) -> DynamicTariff:
         """A uniform duty ``rate`` levied by ``importer`` on foreign source cells.
 
         ``exporters`` restricts the taxed source countries (default: all
@@ -238,7 +240,7 @@ class DynamicTariff:
     @classmethod
     def from_rates(cls, calibration: DynamicCalibration, rates: Any, *,
                    consumption_rates: Any | None = None, investment_rates: Any | None = None,
-                   label: str = "policy") -> "DynamicTariff":
+                   label: str = "policy") -> DynamicTariff:
         """Explicit rate tables of shape ``(N_active, C)`` or full-table ``(M, C)``.
 
         Full-table rows are subset to the calibration's active cells. Domestic
@@ -286,7 +288,7 @@ class DynamicTariff:
             source = [labels[i] for i in rows]
             dest = [countries[j] for j in cols]
         else:
-            source, dest = rows.tolist(), cols.tolist()
+            source, dest = list(rows.tolist()), list(cols.tolist())
         return pd.DataFrame({"source": source, "destination": dest,
                              "intermediate": self.rates[rows, cols],
                              "consumption": self.consumption_rates[rows, cols],
