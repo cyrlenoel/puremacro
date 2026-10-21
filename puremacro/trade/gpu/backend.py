@@ -475,7 +475,7 @@ def get_memory_usage(
     # CPU / OS level fallback
     try:
         import resource
-        usage = resource.getrusage(resource.RUSAGE_SELF)
+        usage = getattr(resource, "getrusage")(getattr(resource, "RUSAGE_SELF"))
         # On macOS, ru_maxrss is in bytes; on Linux, in kilobytes
         scale = (1024**2) if platform.system() == "Darwin" else 1024.0
         info["allocated_mb"] = float(usage.ru_maxrss / scale)

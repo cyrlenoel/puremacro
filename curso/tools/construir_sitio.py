@@ -191,7 +191,7 @@ def portada(M):
     head = HEAD.format(title_es="Laboratorios · Macroeconomía Avanzada", title_en="Labs · Advanced Macroeconomics",
                        desc="Laboratorios interactivos del curso Macroeconomía Avanzada (ITAM): filtros, crecimiento, RBC, identificación, agentes heterogéneos, nuevo keynesiano y mercado laboral.",
                        root="", notebooks=NOTEBOOKS_GH, curso=CURSO_WP)
-    (SITIO / "index.html").write_text(head + cuerpo + FOOT.format(root=""))
+    (SITIO / "index.html").write_text(head + cuerpo + FOOT.format(root=""), encoding="utf-8")
     print(f"· index.html con {len(tarjetas)} laboratorios")
 
 
@@ -219,7 +219,7 @@ def pagina_diapositivas(M):
     head = HEAD.format(title_es="Diapositivas · Macroeconomía Avanzada", title_en="Slides · Advanced Macroeconomics",
                        desc="Diapositivas del curso Macroeconomía Avanzada (ITAM), en PDF.",
                        root="../", notebooks=NOTEBOOKS_GH, curso=CURSO_WP)
-    (SITIO / "diapositivas" / "index.html").write_text(head + cuerpo + FOOT.format(root="../"))
+    (SITIO / "diapositivas" / "index.html").write_text(head + cuerpo + FOOT.format(root="../"), encoding="utf-8")
     print(f"· diapositivas/index.html con {len(filas)} mazos")
 
 

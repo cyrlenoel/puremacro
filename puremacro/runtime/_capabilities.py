@@ -275,8 +275,8 @@ def _detect_backends() -> tuple[str, ...]:
 
 def _detect_memory_mb() -> int | None:
     try:
-        page = os.sysconf("SC_PAGE_SIZE")
-        pages = os.sysconf("SC_PHYS_PAGES")
+        page = getattr(os, "sysconf", lambda x: 4096)("SC_PAGE_SIZE")
+        pages = getattr(os, "sysconf", lambda x: getattr(os, "cpu_count", lambda: 1)())("SC_PHYS_PAGES")
     except (AttributeError, ValueError, OSError, Exception):
         return None
     if not isinstance(page, int) or not isinstance(pages, int):
