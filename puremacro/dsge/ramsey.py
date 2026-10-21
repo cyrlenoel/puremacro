@@ -1270,7 +1270,7 @@ def ramsey_model(
         foc_nodes=foc_nodes,
     )
     # Constraint nodes for RamseyResult.to_latex (not a dataclass field).
-    object.__setattr__(result, "_constraint_nodes", [node.simplify() for node in constraint_nodes])
+    object.__setattr__(result, "_constraint_nodes", [node.simplify() for node in constraint_nodes])  # type: ignore
     return result
 
 
