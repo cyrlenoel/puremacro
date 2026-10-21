@@ -206,11 +206,11 @@ from ..lp._panel_helpers import as_panel_index, two_way_fe_within
 from ..spatial.weights import SpatialWeights, _coerce_coords, haversine_km
 
 __all__ = [
-    "RingAssignment",
-    "SpatialDiDResult",
-    "contiguity_rings",
-    "exposure_rings",
     "spatial_did",
+    "exposure_rings",
+    "contiguity_rings",
+    "SpatialDiDResult",
+    "RingAssignment",
 ]
 
 _RING_TIMINGS = ("already_treated", "ever_treated")
