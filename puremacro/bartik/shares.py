@@ -32,6 +32,10 @@ def build_base_year_shares(
     """
     _assert_suppressed_dtype(industry_panel)
     base = industry_panel[industry_panel["year"] == base_year].copy()
+    if base.empty:
+        df = pd.DataFrame(columns=["county_fips", "naics", "share"])
+        df["share"] = df["share"].astype(float)
+        return df
     base = base[~base["suppressed"].astype(bool)]
     annual = base.groupby(["county_fips", "naics"], as_index=False)["emp_avg"].mean()
     totals = annual.groupby("county_fips")["emp_avg"].sum().rename("total")
