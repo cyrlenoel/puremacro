@@ -34,6 +34,8 @@ def build_base_year_shares(
     base = industry_panel[industry_panel["year"] == base_year].copy()
     base = base[~base["suppressed"].astype(bool)]
     annual = base.groupby(["county_fips", "naics"], as_index=False)["emp_avg"].mean()
+    if annual.empty:
+        return pd.DataFrame(columns=["county_fips", "naics", "share"])
     totals = annual.groupby("county_fips")["emp_avg"].sum().rename("total")
     annual = annual.join(totals, on="county_fips")
     # Drop zero-denominator counties to avoid silent NaN shares
