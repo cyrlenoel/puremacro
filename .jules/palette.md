@@ -1,0 +1,3 @@
+## 2024-10-23 - Keyboard navigation for custom D3 charts
+**Learning:** Adding keyboard navigation to complex D3-rendered SVG elements (like a scatter plot with Voronoi hover areas) is straightforward by placing `.attr("tabindex", 0)` on the full-area bounding `<rect>` that usually captures pointer events. Keyboard events (`keydown`, `focus`, `blur`) can then be attached directly to this rect, and state (like the currently focused index `curK`) can be maintained within the chart's closure.
+**Action:** When working on interactive visualizations without native focusable elements (like individual SVG circles or paths), add an invisible, focusable SVG `<rect>` that acts as the keyboard proxy and dispatches state updates based on arrow keys.
