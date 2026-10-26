@@ -688,7 +688,10 @@ class BVAR_SVResult:
                 + self.sigma_h_draws * rng.standard_normal((D, n))
             nu = np.exp(h_t / 2.0) * rng.standard_normal((D, n))
             u = np.linalg.solve(self.a_draws, nu[:, :, None])[:, :, 0]
-            x = np.concatenate([np.ones((D, 1))] + [lag_buf[:, -l, :] for l in range(1, p + 1)], axis=1)
+            # ⚡ Bolt: in-place array shifting and reshaping avoids np.concatenate memory reallocation
+            x = np.empty((D, 1 + p * n))
+            x[:, 0] = 1.0
+            x[:, 1:] = lag_buf[:, ::-1, :].reshape(D, p * n)
             y = np.einsum("dk,dkn->dn", x, self.beta_draws) + u
             paths[:, j] = y
             h_paths[:, j] = h_t
