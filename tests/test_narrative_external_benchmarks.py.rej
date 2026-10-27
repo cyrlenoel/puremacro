@@ -1,0 +1,35 @@
+--- test_narrative_external_benchmarks.py
++++ test_narrative_external_benchmarks.py
+@@ -32,7 +32,9 @@
+     from puremacro.narrative.validation.external_benchmarks import (
+         fetch_bbd_ai_epu_monthly,
+     )
+-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
++    import puremacro.narrative.validation.external_benchmarks as mod
++    mod.requests = mock.Mock()
++    with mock.patch.object(mod.requests, "get",
+                     side_effect=_fake_get):
+         ser = fetch_bbd_ai_epu_monthly(cache_dir=tmp_path)
+
+@@ -49,7 +51,9 @@
+     from puremacro.narrative.validation.external_benchmarks import (
+         fetch_bbd_ai_epu_monthly,
+     )
+-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
++    import puremacro.narrative.validation.external_benchmarks as mod
++    mod.requests = mock.Mock()
++    with mock.patch.object(mod.requests, "get",
+                     side_effect=_fake_get) as mocked:
+         fetch_bbd_ai_epu_monthly(cache_dir=tmp_path)
+         first_calls = mocked.call_count
+@@ -64,7 +68,9 @@
+     from puremacro.narrative.validation.external_benchmarks import (
+         fetch_bbd_ai_epu_monthly,
+     )
+-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
++    import puremacro.narrative.validation.external_benchmarks as mod
++    mod.requests = mock.Mock()
++    with mock.patch.object(mod.requests, "get",
+                     side_effect=_fake_get):
+         ser = fetch_bbd_ai_epu_monthly(cache_dir=tmp_path, column="ai")
+     # Jan mean(100, 200, 300) = 200

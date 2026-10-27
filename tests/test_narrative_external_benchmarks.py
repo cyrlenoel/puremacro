@@ -32,7 +32,9 @@ def test_fetch_bbd_ai_epu_monthly_returns_monthly_series(tmp_path):
     from puremacro.narrative.validation.external_benchmarks import (
         fetch_bbd_ai_epu_monthly,
     )
-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
+    import sys
+    import requests
+    with mock.patch.object(requests, "get",
                     side_effect=_fake_get):
         ser = fetch_bbd_ai_epu_monthly(cache_dir=tmp_path)
 
@@ -50,7 +52,8 @@ def test_fetch_bbd_ai_epu_caches_on_disk(tmp_path):
     from puremacro.narrative.validation.external_benchmarks import (
         fetch_bbd_ai_epu_monthly,
     )
-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
+    import requests
+    with mock.patch.object(requests, "get",
                     side_effect=_fake_get) as mocked:
         fetch_bbd_ai_epu_monthly(cache_dir=tmp_path)
         first_calls = mocked.call_count
@@ -66,7 +69,8 @@ def test_fetch_bbd_ai_epu_column_override(tmp_path):
     from puremacro.narrative.validation.external_benchmarks import (
         fetch_bbd_ai_epu_monthly,
     )
-    with mock.patch("puremacro.narrative.validation.external_benchmarks.requests.get",
+    import requests
+    with mock.patch.object(requests, "get",
                     side_effect=_fake_get):
         ser = fetch_bbd_ai_epu_monthly(cache_dir=tmp_path, column="ai")
     # Jan mean(100, 200, 300) = 200
