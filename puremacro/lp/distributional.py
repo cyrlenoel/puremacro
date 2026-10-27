@@ -954,10 +954,10 @@ def bridge_hank_distributional_irf(
         if W.shape == (B, B):
             # Sum over horizons: mean_h (diff_h' W diff_h)
             quad = np.mean([float(diff[h] @ W @ diff[h]) for h in range(H)])
-            dist_mah = float(np.sqrt(max(0.0, quad)))
+            dist_mah = float(np.sqrt(np.maximum(0.0, quad)))
         elif W.shape == (H * B, H * B):
             vec = diff.ravel()
-            dist_mah = float(np.sqrt(max(0.0, float(vec @ W @ vec) / (H * B))))
+            dist_mah = float(np.sqrt(np.maximum(0.0, float(vec @ W @ vec) / (H * B))))
         else:
             raise ValueError(f"weight_matrix must have shape ({B}, {B}) or ({H*B}, {H*B}), got {W.shape}")
     else:
