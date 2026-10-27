@@ -962,7 +962,7 @@ def bridge_hank_distributional_irf(
             raise ValueError(f"weight_matrix must have shape ({B}, {B}) or ({H*B}, {H*B}), got {W.shape}")
     else:
         # Inverse SE variance weighting
-        se_sq = np.maximum(lp_result.se_matrix ** 2, 1e-8)
+        se_sq = np.maximum(lp_result.se_matrix ** 2, 1e-8, dtype=np.float64)
         dist_mah = float(np.sqrt(np.mean((diff ** 2) / se_sq)))
 
     return DistributionalBridgeResult(
