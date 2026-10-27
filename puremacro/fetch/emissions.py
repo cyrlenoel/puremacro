@@ -25,7 +25,8 @@ from __future__ import annotations
 import datetime as dt
 import json
 import warnings
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -474,29 +475,24 @@ def fetch_emissions_panel(
         return merged.sort_values(["code", "variable", "date"]).reset_index(drop=True)
 
     # Quarterly expansion: expand each annual observation into 4 quarterly periods
-    q_records: list[dict[str, object]] = []
-    for _, row in merged.iterrows():
-        base_year = row["date"].year
-        var_name = str(row["variable"])
-        q_var = var_name[:-2] + "_q" if var_name.endswith("_a") else var_name + "_q"
-        q_source = f"resampled_from_A:{row['source']}"
+    # ⚡ Bolt: Vectorize row duplication avoiding iterrows() overhead
+    n_rows = len(merged)
+    positions = np.repeat(np.arange(n_rows), 4)
+    months = np.tile(np.array([1, 4, 7, 10]), n_rows)
 
-        for m in (1, 4, 7, 10):
-            q_records.append({
-                "code": row["code"],
-                "date": pd.Timestamp(f"{base_year}-{m:02d}-01"),
-                "variable": q_var,
-                "value": row["value"],
-                "sa_source": row["sa_source"],
-                "source": q_source,
-            })
+    years = merged["date"].dt.year.to_numpy()[positions]
+    names = merged["variable"].astype(str)
+    normalized = {name: (name[:-2] + "_q" if name.endswith("_a") else name + "_q") for name in names.unique()}
 
-    if not q_records:
-        return _EMPTY.copy()
-
-    q_df = pd.DataFrame(q_records, columns=["code", "date", "variable", "value", "sa_source", "source"])
-    q_df = q_df.sort_values(["code", "variable", "date"]).reset_index(drop=True)
-    return q_df
+    out = pd.DataFrame({
+        "code": merged["code"].to_numpy()[positions],
+        "date": pd.to_datetime({"year": years, "month": months, "day": 1}),
+        "variable": names.map(normalized).to_numpy()[positions],
+        "value": merged["value"].astype(float).to_numpy()[positions],
+        "sa_source": merged["sa_source"].to_numpy()[positions],
+        "source": ("resampled_from_A:" + merged["source"].astype(str)).to_numpy()[positions],
+    })
+    return out.sort_values(["code", "variable", "date"]).reset_index(drop=True)
 
 
-__all__ = ["fetch_wdi_emissions", "fetch_oecd_ghg", "fetch_emissions_panel"]
+__all__ = ["fetch_emissions_panel", "fetch_oecd_ghg", "fetch_wdi_emissions"]
