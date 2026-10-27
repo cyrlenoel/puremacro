@@ -23,7 +23,6 @@ import os
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 
 _DEFAULT_AI_EPU_URL = os.environ.get(
@@ -70,6 +69,7 @@ def fetch_bbd_ai_epu_monthly(
         if cache_path.exists() and not refetch:
             return pd.read_parquet(cache_path)[column]
 
+    import requests
     resp = requests.get(src_url, timeout=timeout)
     resp.raise_for_status()
     raw = pd.read_csv(io.StringIO(resp.text))

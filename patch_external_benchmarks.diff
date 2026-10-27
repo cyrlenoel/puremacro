@@ -1,0 +1,18 @@
+--- puremacro/narrative/validation/external_benchmarks.py
++++ puremacro/narrative/validation/external_benchmarks.py
+@@ -20,7 +20,6 @@
+ from pathlib import Path
+
+ import pandas as pd
+-import requests
+
+
+ _DEFAULT_AI_EPU_URL = os.environ.get(
+@@ -58,6 +57,7 @@
+         if cache_path.exists() and not refetch:
+             return pd.read_parquet(cache_path)[column]
+
++    import requests
+     resp = requests.get(src_url, timeout=timeout)
+     resp.raise_for_status()
+     raw = pd.read_csv(io.StringIO(resp.text))
