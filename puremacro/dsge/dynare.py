@@ -1503,7 +1503,7 @@ def solve_dynare_3rd_order(
                 for p in range(q + 1):
                     for i in range(N):
                         val = float(deriv[i, p])
-                        if abs(val) > 1e-9:
+                        if abs(val) > 1e-14:
                             T_entries[(i, p, q, r)] = val
         T_f = SparseDynamicTensor3D(shape=(N, K_vars, K_vars, K_vars), entries=T_entries)
 

@@ -265,9 +265,14 @@ def _solve_scalar_block(
     if info == 0 and rcond_est > singular_rcond:
         sol, solve_info = dgetrs(lu, piv, rhs)
         if solve_info == 0 and np.isfinite(sol).all():
+            # One step of iterative refinement on the residual recovers the
+            # digits lost when (A_hat + tau A_+) is ill-conditioned (|tau| -> 1).
+            if Mj is None:
+                Mj = A_hat + key * A_plus
+            dx, ref_info = dgetrs(lu, piv, rhs - Mj @ sol)
+            if ref_info == 0 and np.isfinite(dx).all():
+                sol = sol + dx
             if rcond_est < 1e-8:
-                if Mj is None:
-                    Mj = A_hat + key * A_plus
                 res_norm = float(np.linalg.norm(Mj @ sol - rhs, ord=np.inf))
                 rhs_norm = float(np.linalg.norm(rhs, ord=np.inf))
                 mj_norm = float(np.linalg.norm(Mj, ord=np.inf))
@@ -668,7 +673,8 @@ def solve_order3_sylvester_schur(
                     X_tilde[:, i1, i2, i3] = sol
                     W[:, i1, i2, i3] = A_plus @ sol
                 else:
-                    S = np.kron(T12 if T12 is not None else T1, T3)
+                    # 1x1 x 1x1 x 2x2 block: T1 (x) T2 is the scalar T1[0,0]*T2[0,0]
+                    S = np.kron(T12 if T12 is not None else (T1 @ T2), T3)
                     D_blk = D_tilde[:, i1:e1, i2:e2, i3:e3].reshape(N, m1 * m2 * m3)
                     sol_blk = _solve_quasi_block(A_hat, A_plus, S, D_blk, tracker)
                     X_tilde[:, i1:e1, i2:e2, i3:e3] = sol_blk.reshape(N, m1, m2, m3)
